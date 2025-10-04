@@ -23,7 +23,7 @@ class SDUIWidgetRegistry {
     SDUIWidgetFactory factory, {
     bool override = false,
   }) {
-    if (_factories.containsKey(type) && !override) return false;
+    if (isRegistered(type) && !override) return false;
     _factories[type] = factory;
     return true;
   }
@@ -34,7 +34,7 @@ class SDUIWidgetRegistry {
     Function(String, dynamic)? onChanged,
   }) {
     final type = SDUIFieldType.fromValue(field.type);
-    if (_factories.containsKey(type)) {
+    if (isRegistered(type)) {
       return _factories[type]!(
         field: field,
         formManager: formManager,
@@ -57,7 +57,7 @@ class SDUIWidgetRegistry {
   /// Unregisters a field type
   bool unregister(SDUIFieldType fieldType) {
     bool removed = false;
-    if (_factories.containsKey(fieldType)) {
+    if (isRegistered(fieldType)) {
       _factories.remove(fieldType);
       removed = true;
     }
