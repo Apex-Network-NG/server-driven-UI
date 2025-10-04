@@ -1,0 +1,72 @@
+import 'package:collection/collection.dart';
+import 'package:flutter/material.dart';
+import 'package:sdui/src/config/bottomsheet/bottomsheet_service.dart';
+import 'package:sdui/src/config/country/country.dart';
+import 'package:sdui/src/config/country/country_service.dart';
+import 'package:sdui/src/fields/country_picker_sheet.dart';
+import 'package:sdui/src/fields/selector.dart';
+import 'package:sdui/src/renderer/widget.dart';
+
+class SDUICountryField extends SDUIBaseStatefulWidget {
+  const SDUICountryField({
+    super.key,
+    required super.field,
+    required super.formManager,
+    super.onChanged,
+  });
+
+  @override
+  SDUIBaseState<SDUIBaseStatefulWidget> createState() =>
+      _SDUICountryFieldState();
+}
+
+class _SDUICountryFieldState extends SDUIBaseState<SDUICountryField> {
+  final countries = CountryService().getAll();
+
+  _selectCountry() async {
+    final country = widget.formManager.getSelectedCountry(widget.field.key);
+    Country? selectedCountry;
+    if (country != null) {
+      final selectedCountryLowerCase = country.toLowerCase();
+      selectedCountry = countries.firstWhereOrNull(
+        (c) => c.name.toLowerCase() == selectedCountryLowerCase,
+      );
+    }
+    final result = await BottomSheetService.showBottomSheet(
+      context: context,
+      child: CountryPickerSheet(
+        field: widget.field,
+        selectedCountry: selectedCountry,
+      ),
+    );
+
+    if (!mounted || !context.mounted) return;
+    widget.formManager.updateSelectedCountry(
+      widget.field.key,
+      result?.countryCode,
+    );
+    widget.onChanged?.call(widget.field.key, result?.countryCode);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final label = widget.field.label;
+    final helpText = widget.field.helpText;
+    final hintText = widget.field.placeholder ?? label;
+    final country = widget.formManager.getSelectedCountry(widget.field.key);
+
+    return Selector(
+      header: label,
+      hintText: hintText,
+      helpText: helpText,
+      errorText: widget.formManager.getError(widget.field.key),
+      title: country,
+      onTap: _selectCountry,
+    );
+  }
+
+  @override
+  String? validateField(value) {
+    return null;
+  }
+}

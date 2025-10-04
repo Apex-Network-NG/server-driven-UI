@@ -1,0 +1,179 @@
+import 'package:flutter/material.dart';
+import 'package:sdui/src/fields/default_country_field.dart';
+import 'package:sdui/src/fields/default_date_field.dart';
+import 'package:sdui/src/fields/default_email_field.dart';
+import 'package:sdui/src/fields/default_file_field.dart';
+import 'package:sdui/src/fields/default_number_field.dart';
+import 'package:sdui/src/fields/default_password_field.dart';
+import 'package:sdui/src/fields/default_phone_field.dart';
+import 'package:sdui/src/fields/default_textfield.dart';
+import 'package:sdui/src/fields/default_url_field.dart';
+import 'package:sdui/src/fields/sdui_boolean_field.dart';
+import 'package:sdui/src/fields/sdui_options_field.dart';
+import 'package:sdui/src/fields/unknown.dart';
+import 'package:sdui/src/util/sdui_form.dart';
+import 'package:sdui/src/util/sdui_form_manager.dart';
+
+/// A widget that renders different field types based on the field configuration
+/// This is the main entry point for rendering all SDUI fields
+class SDUIFieldRenderer extends StatefulWidget {
+  final SDUIField field;
+  final FormManager formManager;
+  final Function(String, dynamic)? onChanged;
+
+  const SDUIFieldRenderer({
+    super.key,
+    required this.field,
+    required this.formManager,
+    this.onChanged,
+  });
+
+  @override
+  State<SDUIFieldRenderer> createState() => _SDUIFieldRendererState();
+}
+
+class _SDUIFieldRendererState extends State<SDUIFieldRenderer> {
+  /// Field types that show general error messages below the field
+  final allowedTypesGeneralError = ["boolean"];
+
+  @override
+  Widget build(BuildContext context) {
+    return ListenableBuilder(
+      listenable: widget.formManager,
+      builder: (context, _) {
+        return Container(
+          padding: const EdgeInsets.only(bottom: 16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildFieldWidget(),
+              if (widget.formManager.hasError(widget.field.key) &&
+                  allowedTypesGeneralError.contains(widget.field.type)) ...[
+                const SizedBox(height: 4),
+                Text(
+                  widget.formManager.getError(widget.field.key) ?? '',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    fontSize: 12,
+                    color: Colors.red,
+                  ),
+                ),
+              ],
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildFieldWidget() {
+    // Check if field should be visible based on conditions
+    if (widget.field.hiddenField) {
+      return const SizedBox.shrink();
+    }
+
+    switch (widget.field.type) {
+      // Text field types
+      case 'short-text':
+      case 'medium-text':
+      case 'long-text':
+      case 'text':
+        return SDUITextField(
+          field: widget.field,
+          formManager: widget.formManager,
+          onChanged: widget.onChanged,
+        );
+
+      // Email field
+      case 'email':
+        return SDUIEmailField(
+          field: widget.field,
+          formManager: widget.formManager,
+          onChanged: widget.onChanged,
+        );
+
+      // URL field
+      case 'url':
+        return SDUIURLField(
+          field: widget.field,
+          formManager: widget.formManager,
+          onChanged: widget.onChanged,
+        );
+
+      // Number field
+      case 'number':
+        return SDUINumberField(
+          field: widget.field,
+          formManager: widget.formManager,
+          onChanged: widget.onChanged,
+        );
+
+      // Password field
+      case 'password':
+        return SDUIPasswordField(
+          field: widget.field,
+          formManager: widget.formManager,
+          onChanged: widget.onChanged,
+        );
+
+      // Phone field
+      case 'phone':
+        return SDUIPhoneField(
+          field: widget.field,
+          formManager: widget.formManager,
+          onChanged: widget.onChanged,
+        );
+
+      // Country field
+      case 'country':
+        return SDUICountryField(
+          field: widget.field,
+          formManager: widget.formManager,
+          onChanged: widget.onChanged,
+        );
+
+      // Boolean/checkbox field
+      case 'boolean':
+        return SDUIBoolField(
+          field: widget.field,
+          formManager: widget.formManager,
+          onChanged: widget.onChanged,
+        );
+
+      // Options field (radio, dropdown, multi-select)
+      case 'options':
+        return SDUIOptionsField(
+          field: widget.field,
+          formManager: widget.formManager,
+          onChanged: widget.onChanged,
+        );
+
+      // Date and datetime fields
+      case 'date':
+      case 'datetime':
+        return SDUIDateField(
+          field: widget.field,
+          formManager: widget.formManager,
+          onChanged: widget.onChanged,
+        );
+
+      // File upload fields
+      case 'file':
+      case 'image':
+      case 'video':
+      case 'document':
+        return SDUIFileField(
+          field: widget.field,
+          formManager: widget.formManager,
+          onChanged: widget.onChanged,
+        );
+
+      // Unknown/unsupported field type
+      default:
+        return SDUIUnknownField(
+          field: widget.field,
+          formManager: widget.formManager,
+          onChanged: widget.onChanged,
+        );
+    }
+  }
+}
