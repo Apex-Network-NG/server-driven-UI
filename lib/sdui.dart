@@ -7,7 +7,6 @@ export 'src/renderer/field_renderer.dart';
 export 'src/renderer/registry.dart';
 export 'src/renderer/renderer.dart';
 export 'src/renderer/widget.dart';
-export 'src/renderer/widget_factory.dart';
 
 // Util
 export 'src/util/enums.dart';
