@@ -37,6 +37,42 @@ Then run:
 flutter pub get
 ```
 
+### Platform Configuration
+
+#### Android Setup (Required for URL Launching)
+
+If your form uses URL fields with clickable links (like terms and conditions), you need to add the following configuration to your `android/app/src/main/AndroidManifest.xml` file:
+
+```xml
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- ... existing configuration ... -->
+    
+    <queries>
+        <!-- Existing queries -->
+        <intent>
+            <action android:name="android.intent.action.PROCESS_TEXT"/>
+            <data android:mimeType="text/plain"/>
+        </intent>
+        
+        <!-- Required for URL launcher to work on Android 11+ -->
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="https" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="http" />
+        </intent>
+    </queries>
+</manifest>
+```
+
+**Important:** These `<queries>` entries are required for Android 11+ (API level 30+) to allow your app to launch HTTP and HTTPS URLs. Without this configuration, URL links in help text or other fields may not work properly.
+
+#### iOS Setup
+
+No additional configuration is required for iOS. URL launching works out of the box.
+
 ### Basic Usage
 
 ```dart
@@ -115,6 +151,16 @@ class MyFormPage extends StatelessWidget {
                   "ui": {"multilineRows": 1},
                   "constraints": {},
                   "validations": []
+                },
+                {
+                  "key": "terms_accepted",
+                  "label": "Accept our terms and conditions",
+                  "type": "boolean",
+                  "required": true,
+                  "help_text": "By continuing, you accept our [terms and conditions](https://example.com/privacy).",
+                  "ui": {"multilineRows": 1},
+                  "constraints": {},
+                  "validations": []
                 }
               ]
             }
@@ -165,6 +211,18 @@ class MyFormPage extends StatelessWidget {
 | `options` | Radio buttons, dropdown, multi-select | Gender, interests |
 | `country` | Country picker | United States |
 | `file` | File upload | Documents, images |
+
+### Clickable Links in Help Text
+
+SDUI supports clickable links in help text using Markdown-style syntax:
+
+```json
+{
+  "help_text": "By continuing, you accept our [terms and conditions](https://example.com/privacy)."
+}
+```
+
+This will render as clickable text that opens the URL in the default browser. **Note:** Ensure you've configured Android permissions as described in the Platform Configuration section above.
 
 ## 🎨 Custom Field Types
 
@@ -456,7 +514,7 @@ class _MyFormPageState extends State<MyFormPage> {
                 "label": "I accept the Terms and Conditions",
                 "type": "boolean",
                 "required": true,
-                "placeholder": null,
+                "help_text": "By continuing, you accept our [terms and conditions](https://example.com/privacy).",
                 "ui": {"multilineRows": 1},
                 "constraints": {},
                 "validations": []
@@ -510,6 +568,22 @@ Registry for custom field widgets.
 - `unregister(SDUIFieldType fieldType)` - Unregister widget
 - `isRegistered(SDUIFieldType fieldType)` - Check if type is registered
 - `getRegisteredTypes()` - Get all registered types
+
+## 🚨 Troubleshooting
+
+### URL Links Not Working on Android
+
+If clickable links in help text aren't working on Android, ensure you've added the required `<queries>` configuration to your `AndroidManifest.xml` as described in the Platform Configuration section above.
+
+**Error symptoms:**
+- Links don't respond to taps
+- Log messages like "component name for https://example.com is null"
+
+**Solution:**
+Add the Android queries configuration and rebuild your app:
+```bash
+flutter clean && flutter build apk
+```
 
 ## 🤝 Contributing
 

@@ -24,18 +24,15 @@ class _SDUIBoolFieldState extends SDUIBaseState<SDUIBoolField> {
     final text = helpText ?? label;
     final theme = Theme.of(context);
 
-    return InkWell(
-      onTap: _toggleChecker,
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.start,
-        children: [
-          Checklist(enabled: isChecked, onTap: _toggleChecker),
-          const SizedBox(width: 8),
-          Expanded(
-            child: ClickableText(text: text, style: theme.textTheme.bodySmall),
-          ),
-        ],
-      ),
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.start,
+      children: [
+        Checklist(enabled: isChecked, onTap: _toggleChecker),
+        const SizedBox(width: 8),
+        Expanded(
+          child: ClickableText(text: text, style: theme.textTheme.bodySmall),
+        ),
+      ],
     );
   }
 

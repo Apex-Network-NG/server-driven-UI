@@ -152,6 +152,9 @@ class _SDUIPhoneFieldState extends SDUIBaseState<SDUIPhoneField> {
           maxLines: widget.field.ui.multilineRows,
           keyboardType: widget.field.type.textInputType,
           style: theme.textTheme.bodySmall,
+          onTapOutside: (event) {
+            FocusScope.of(context).unfocus();
+          },
           onChanged: (value) {
             widget.onChanged?.call(widget.field.key, value);
             validateField(value);

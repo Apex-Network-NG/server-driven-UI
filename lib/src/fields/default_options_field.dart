@@ -81,7 +81,7 @@ class _BuildDropSelectionState extends State<_BuildDropSelection> {
                       return Container(
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(8),
-                          color: theme.colorScheme.onPrimaryContainer,
+                          color: theme.colorScheme.onPrimary,
                         ),
                         padding: const EdgeInsets.symmetric(
                           horizontal: 12,
@@ -211,7 +211,12 @@ class _BuildRadioOptionsState extends State<_BuildRadioOptions> {
                   final isSelected = selected?.firstOrNull == option.key;
 
                   return InkWell(
-                    onTap: () {},
+                    onTap: () {
+                      final fieldKey = widget.widget.field.key;
+                      formManager.setSelectedOption(fieldKey, [option.key]);
+                      widget.widget.onChanged?.call(fieldKey, option.key);
+                      _validateField(option.key);
+                    },
                     child: Container(
                       width: itemWidth,
                       padding: const EdgeInsets.symmetric(vertical: 10),
@@ -221,7 +226,7 @@ class _BuildRadioOptionsState extends State<_BuildRadioOptions> {
                           true => Border.all(color: theme.colorScheme.primary),
                           _ => null,
                         },
-                        color: theme.colorScheme.onPrimaryContainer,
+                        color: theme.colorScheme.onPrimary,
                       ),
                       child: Row(
                         children: [

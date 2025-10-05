@@ -35,6 +35,9 @@ class SDUIEmailField extends SDUIBaseWidget {
           maxLength: field.constraints.maxLength,
           maxLines: field.ui.multilineRows,
           keyboardType: field.type.textInputType,
+          onTapOutside: (event) {
+            FocusScope.of(context).unfocus();
+          },
           style: theme.textTheme.bodySmall,
           onChanged: (value) {
             onChanged?.call(field.key, value);

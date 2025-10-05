@@ -20,7 +20,7 @@ class CountryPickerSheet extends StatefulWidget {
 }
 
 class _CountryPickerSheetState extends State<CountryPickerSheet> {
-  late ValueNotifier<List<Country>> countries;
+  final countries = ValueNotifier<List<Country>>([]);
   final _searchController = TextEditingController();
   final _focusNode = FocusNode();
   final _searchedCountries = ValueNotifier<List<Country>>([]);
@@ -82,112 +82,118 @@ class _CountryPickerSheetState extends State<CountryPickerSheet> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        child: ListenableBuilder(
-          listenable: Listenable.merge([
-            _searchedCountries,
-            countries,
-            _searchController,
-          ]),
-          builder: (context, _) {
-            final isSearching = _searchController.text.trim().isNotEmpty;
-            final searched = _searchedCountries.value;
-            final originalList = this.countries.value;
-            final countries = isSearching ? searched : originalList;
-            final selectedCountry = widget.selectedCountry;
-            final searchEmpty = isSearching && countries.isEmpty;
+    return SizedBox(
+      height: MediaQuery.of(context).size.height * .8,
+      child: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: ListenableBuilder(
+            listenable: Listenable.merge([
+              _searchedCountries,
+              countries,
+              _searchController,
+            ]),
+            builder: (context, _) {
+              final isSearching = _searchController.text.trim().isNotEmpty;
+              final searched = _searchedCountries.value;
+              final originalList = this.countries.value;
+              final countries = isSearching ? searched : originalList;
+              final selectedCountry = widget.selectedCountry;
+              final searchEmpty = isSearching && countries.isEmpty;
 
-            return Column(
-              mainAxisAlignment: MainAxisAlignment.start,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Topbar(title: 'Select Country'),
-                _SearchField(
-                  controller: _searchController,
-                  focusNode: _focusNode,
-                  onChanged: _onSearchChanged,
-                ),
-                SizedBox(height: 12),
-                Expanded(
-                  child: AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 400),
-                    switchInCurve: Curves.easeInOut,
-                    switchOutCurve: Curves.easeInOut,
-                    layoutBuilder: (currentChild, previousChildren) {
-                      return Stack(
-                        alignment: Alignment.topCenter,
-                        children: <Widget>[
-                          ...previousChildren,
-                          if (currentChild != null) currentChild,
-                        ],
-                      );
-                    },
-                    transitionBuilder: (child, animation) =>
-                        FadeTransition(opacity: animation, child: child),
-                    child: switch (searchEmpty) {
-                      true => EmptyDetailComponent(
-                        header: 'No Country Found',
-                        label:
-                            "We found no country that matches your search query",
-                      ),
-                      _ => RawScrollbar(
-                        thickness: 5,
-                        thumbVisibility: true,
-                        controller: _scrollController,
-                        thumbColor: theme.colorScheme.surfaceContainerHighest,
-                        minThumbLength: 85,
-                        radius: const Radius.circular(3),
-                        padding: const EdgeInsets.only(right: 4),
-                        child: ListView.separated(
-                          padding: EdgeInsets.zero,
-                          controller: _scrollController,
-                          itemCount: countries.length,
-                          separatorBuilder: (_, __) => SizedBox(height: 12),
-                          itemBuilder: (_, index) {
-                            final country = countries[index];
-                            bool isSelected = false;
-                            if (widget.field.constraints.codeType ==
-                                'alpha_2') {
-                              final code = country.countryCode;
-                              isSelected = selectedCountry?.countryCode == code;
-                            } else {
-                              final code = country.iso3Code;
-                              isSelected = selectedCountry?.iso3Code == code;
-                            }
-
-                            return Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 4),
-                              child: Row(
-                                children: [
-                                  CircleFlag(country.countryCode, size: 24),
-                                  SizedBox(width: 12),
-                                  Expanded(
-                                    child: Text(
-                                      country.name,
-                                      style: theme.textTheme.bodySmall,
-                                    ),
-                                  ),
-                                  SizedBox(width: 12),
-                                  if (isSelected)
-                                    Icon(
-                                      Icons.check_circle_rounded,
-                                      color: theme.colorScheme.primary,
-                                      size: 24,
-                                    ),
-                                ],
-                              ),
-                            );
-                          },
-                        ),
-                      ),
-                    },
+              return Column(
+                mainAxisAlignment: MainAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Topbar(title: 'Select Country'),
+                  _SearchField(
+                    controller: _searchController,
+                    focusNode: _focusNode,
+                    onChanged: _onSearchChanged,
                   ),
-                ),
-              ],
-            );
-          },
+                  SizedBox(height: 12),
+                  Expanded(
+                    child: AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 400),
+                      switchInCurve: Curves.easeInOut,
+                      switchOutCurve: Curves.easeInOut,
+                      layoutBuilder: (currentChild, previousChildren) {
+                        return Stack(
+                          alignment: Alignment.topCenter,
+                          children: <Widget>[
+                            ...previousChildren,
+                            if (currentChild != null) currentChild,
+                          ],
+                        );
+                      },
+                      transitionBuilder: (child, animation) =>
+                          FadeTransition(opacity: animation, child: child),
+                      child: switch (searchEmpty) {
+                        true => EmptyDetailComponent(
+                          header: 'No Country Found',
+                          label:
+                              "We found no country that matches your search query",
+                        ),
+                        _ => RawScrollbar(
+                          thickness: 5,
+                          thumbVisibility: true,
+                          controller: _scrollController,
+                          thumbColor: theme.colorScheme.surfaceContainerHighest,
+                          minThumbLength: 85,
+                          radius: const Radius.circular(3),
+                          padding: const EdgeInsets.only(right: 4),
+                          child: ListView.separated(
+                            padding: EdgeInsets.zero,
+                            controller: _scrollController,
+                            itemCount: countries.length,
+                            separatorBuilder: (_, __) => SizedBox(height: 12),
+                            itemBuilder: (_, index) {
+                              final country = countries[index];
+                              bool isSelected = false;
+                              if (widget.field.constraints.codeType ==
+                                  'alpha_2') {
+                                final code = country.countryCode;
+                                isSelected =
+                                    selectedCountry?.countryCode == code;
+                              } else {
+                                final code = country.iso3Code;
+                                isSelected = selectedCountry?.iso3Code == code;
+                              }
+
+                              return Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 4,
+                                ),
+                                child: Row(
+                                  children: [
+                                    CircleFlag(country.countryCode, size: 24),
+                                    SizedBox(width: 12),
+                                    Expanded(
+                                      child: Text(
+                                        country.name,
+                                        style: theme.textTheme.bodySmall,
+                                      ),
+                                    ),
+                                    SizedBox(width: 12),
+                                    if (isSelected)
+                                      Icon(
+                                        Icons.check_circle_rounded,
+                                        color: theme.colorScheme.primary,
+                                        size: 24,
+                                      ),
+                                  ],
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                      },
+                    ),
+                  ),
+                ],
+              );
+            },
+          ),
         ),
       ),
     );
@@ -208,10 +214,15 @@ class Topbar extends StatelessWidget {
           children: [
             SizedBox(width: 16),
             Text(title, style: Theme.of(context).textTheme.titleMedium),
-            Icon(
-              Icons.cancel,
-              size: 24,
-              color: Theme.of(context).colorScheme.onSurface,
+            InkWell(
+              onTap: () {
+                Navigator.pop(context);
+              },
+              child: Icon(
+                Icons.cancel,
+                size: 24,
+                color: Theme.of(context).colorScheme.onSurface,
+              ),
             ),
           ],
         ),

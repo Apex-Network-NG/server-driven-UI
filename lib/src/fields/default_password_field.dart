@@ -98,6 +98,9 @@ class _SDUIPasswordFieldState extends SDUIBaseState<SDUIPasswordField> {
           keyboardType: widget.field.type.textInputType,
           obscureText: _obscurePassword,
           style: theme.textTheme.bodySmall,
+          onTapOutside: (event) {
+            FocusScope.of(context).unfocus();
+          },
           onChanged: (value) {
             widget.onChanged?.call(widget.field.key, value);
             validateField(value);

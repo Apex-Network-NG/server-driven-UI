@@ -36,6 +36,9 @@ class SDUIURLField extends SDUIBaseWidget {
           maxLines: field.ui.multilineRows,
           style: theme.textTheme.bodySmall,
           keyboardType: field.type.textInputType,
+          onTapOutside: (event) {
+            FocusScope.of(context).unfocus();
+          },
           onChanged: (value) {
             onChanged?.call(field.key, value);
             validateField(value);

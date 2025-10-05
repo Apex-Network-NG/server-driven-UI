@@ -32,6 +32,9 @@ class SearchField extends StatelessWidget {
           keyboardType: TextInputType.text,
           onChanged: onChanged,
           style: theme.textTheme.bodySmall,
+          onTapOutside: (event) {
+            FocusScope.of(context).unfocus();
+          },
           decoration: baseDecoration.copyWith(hintText: hintText),
         ),
       ],

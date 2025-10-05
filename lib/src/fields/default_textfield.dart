@@ -36,6 +36,9 @@ class SDUITextField extends SDUIBaseWidget {
           maxLines: field.ui.multilineRows,
           keyboardType: field.type.textInputType,
           style: theme.textTheme.bodySmall,
+          onTapOutside: (event) {
+            FocusScope.of(context).unfocus();
+          },
           onChanged: (value) {
             onChanged?.call(field.key, value);
             validateField(value);

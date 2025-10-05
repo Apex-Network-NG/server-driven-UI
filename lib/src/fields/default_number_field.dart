@@ -38,6 +38,9 @@ class SDUINumberField extends SDUIBaseWidget {
           maxLines: field.ui.multilineRows,
           keyboardType: field.type.textInputType,
           style: theme.textTheme.bodySmall,
+          onTapOutside: (event) {
+            FocusScope.of(context).unfocus();
+          },
           inputFormatters: [
             FilteringTextInputFormatter.digitsOnly,
             if (regex != null) FilteringTextInputFormatter.allow(RegExp(regex)),

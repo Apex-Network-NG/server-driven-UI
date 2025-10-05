@@ -70,11 +70,11 @@ class BottomSheetWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final sduiTheme = theme.extension<SDUITheme>();
+    // final sduiTheme = theme.extension<SDUITheme>();
     return Container(
       decoration: BoxDecoration(
-        borderRadius: sduiTheme?.borderRadius,
-        color: sduiTheme?.modalDecoration?.color,
+        borderRadius: BorderRadius.circular(12),
+        color: theme.colorScheme.surface,
       ),
       padding: switch (isKeepingInset) {
         true => EdgeInsets.only(

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:sdui/sdui.dart';
 import 'package:sdui/src/fields/default_country_field.dart';
 import 'package:sdui/src/fields/default_date_field.dart';
 import 'package:sdui/src/fields/default_email_field.dart';
@@ -8,11 +9,9 @@ import 'package:sdui/src/fields/default_password_field.dart';
 import 'package:sdui/src/fields/default_phone_field.dart';
 import 'package:sdui/src/fields/default_textfield.dart';
 import 'package:sdui/src/fields/default_url_field.dart';
-import 'package:sdui/src/fields/sdui_boolean_field.dart';
-import 'package:sdui/src/fields/sdui_options_field.dart';
+import 'package:sdui/src/fields/default_boolean_field.dart';
+import 'package:sdui/src/fields/default_options_field.dart';
 import 'package:sdui/src/fields/unknown.dart';
-import 'package:sdui/src/util/sdui_form.dart';
-import 'package:sdui/src/util/sdui_form_manager.dart';
 
 /// A widget that renders different field types based on the field configuration
 /// This is the main entry point for rendering all SDUI fields
@@ -69,6 +68,17 @@ class _SDUIFieldRendererState extends State<SDUIFieldRenderer> {
     // Check if field should be visible based on conditions
     if (widget.field.hiddenField) {
       return const SizedBox.shrink();
+    }
+
+    final customWidget = SDUIWidgetRegistry.instance.create(
+      field: widget.field,
+      formManager: widget.formManager,
+      onChanged: widget.onChanged,
+    );
+
+    // If custom widget exists, use it
+    if (customWidget != null) {
+      return customWidget;
     }
 
     switch (widget.field.type) {
