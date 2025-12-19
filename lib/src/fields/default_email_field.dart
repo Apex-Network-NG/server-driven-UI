@@ -1,8 +1,10 @@
 import 'package:email_validator/email_validator.dart';
 import 'package:flutter/material.dart';
+import 'package:sdui/sdui.dart';
 import 'package:sdui/src/renderer/widget.dart';
 import 'package:sdui/src/theme/sdui_theme.dart';
 import 'package:sdui/src/util/extensions.dart';
+import 'package:sdui/src/util/validator.dart';
 
 class SDUIEmailField extends SDUIBaseWidget {
   const SDUIEmailField({
@@ -111,6 +113,22 @@ class SDUIEmailField extends SDUIBaseWidget {
       }
     }
 
+    for (final validation in field.validations) {
+      final result = _validateRule(validation, value);
+      if (result != null) {
+        formManager.addError(field.key, result);
+        return result;
+      }
+    }
+
     return null;
+  }
+
+  String? _validateRule(SDUIValidation validation, String? value) {
+    return FieldValidator.instance.validateRequired(
+      validation: validation,
+      formManager: formManager,
+      textValue: value,
+    );
   }
 }

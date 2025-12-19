@@ -3,6 +3,7 @@ import 'package:sdui/src/renderer/widget.dart';
 import 'package:sdui/src/theme/sdui_theme.dart';
 import 'package:sdui/src/util/extensions.dart';
 import 'package:sdui/src/util/sdui_form.dart';
+import 'package:sdui/src/util/validator.dart';
 
 class SDUITextField extends SDUIBaseWidget {
   const SDUITextField({
@@ -92,14 +93,10 @@ class SDUITextField extends SDUIBaseWidget {
   }
 
   String? _validateRule(SDUIValidation validation, String? value) {
-    switch (validation.rule) {
-      case 'required':
-        if (value == null || value.isEmpty) {
-          return validation.message ?? 'This field is required';
-        }
-        break;
-    }
-
-    return null;
+    return FieldValidator.instance.validateRequired(
+      validation: validation,
+      formManager: formManager,
+      textValue: value,
+    );
   }
 }

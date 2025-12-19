@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:sdui/sdui.dart';
 import 'package:sdui/src/fields/checkbox.dart';
 import 'package:sdui/src/fields/clickable_text.dart';
 import 'package:sdui/src/renderer/widget.dart';
+import 'package:sdui/src/util/validator.dart';
 
 class SDUIBoolField extends SDUIBaseStatefulWidget {
   const SDUIBoolField({
@@ -53,6 +55,22 @@ class _SDUIBoolFieldState extends SDUIBaseState<SDUIBoolField> {
       widget.formManager.addError(widget.field.key, error);
     }
 
+    for (final validation in widget.field.validations) {
+      final result = _validateRule(validation, value);
+      if (result != null) {
+        widget.formManager.addError(widget.field.key, result);
+        return result;
+      }
+    }
+
     return null;
+  }
+
+  String? _validateRule(SDUIValidation validation, String? value) {
+    return FieldValidator.instance.validateRequired(
+      validation: validation,
+      formManager: widget.formManager,
+      textValue: value,
+    );
   }
 }

@@ -159,12 +159,19 @@ class _SDUIFieldRendererState extends State<SDUIFieldRenderer> {
 
       // Date and datetime fields
       case 'date':
+      case 'time':
       case 'datetime':
         return SDUIDateField(
           field: widget.field,
           formManager: widget.formManager,
           onChanged: widget.onChanged,
         );
+
+      case 'tag':
+      case 'rating':
+      case 'hidden':
+      case 'divider':
+      case 'spacing':
 
       // File upload fields
       case 'file':

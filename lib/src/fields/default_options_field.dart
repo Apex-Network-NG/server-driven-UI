@@ -1,9 +1,9 @@
 import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
-import 'package:sdui/src/config/bottomsheet/bottomsheet_service.dart';
+import 'package:sdui/sdui.dart';
 import 'package:sdui/src/fields/field_modal.dart';
 import 'package:sdui/src/fields/selector.dart';
-import 'package:sdui/src/renderer/widget.dart';
+import 'package:sdui/src/util/validator.dart';
 
 class SDUIOptionsField extends SDUIBaseStatefulWidget {
   const SDUIOptionsField({
@@ -150,6 +150,21 @@ class _BuildDropSelectionState extends State<_BuildDropSelection> {
         formManager.addError(field.key, error);
       }
     }
+
+    for (final validation in field.validations) {
+      final result = _validateRule(validation, value);
+      if (result != null) {
+        formManager.addError(field.key, result);
+      }
+    }
+  }
+
+  String? _validateRule(SDUIValidation validation, String? value) {
+    return FieldValidator.instance.validateRequired(
+      validation: validation,
+      formManager: widget.widget.formManager,
+      textValue: value,
+    );
   }
 }
 

@@ -7,6 +7,7 @@ import 'package:sdui/src/config/bottomsheet/bottomsheet_service.dart';
 import 'package:sdui/src/fields/field_info_modal.dart';
 import 'package:sdui/src/renderer/widget.dart';
 import 'package:sdui/src/util/sdui_form.dart';
+import 'package:sdui/src/util/validator.dart';
 
 class SDUIFileField extends SDUIBaseStatefulWidget {
   const SDUIFileField({
@@ -233,7 +234,22 @@ class _SDUIFileFieldState extends SDUIBaseState<SDUIFileField> {
 
   @override
   String? validateField(value) {
+    for (final validation in widget.field.validations) {
+      final result = _validateRule(validation, value);
+      if (result != null) {
+        widget.formManager.addError(widget.field.key, result);
+        return result;
+      }
+    }
     return null;
+  }
+
+  String? _validateRule(SDUIValidation validation, String? value) {
+    return FieldValidator.instance.validateRequired(
+      validation: validation,
+      formManager: widget.formManager,
+      textValue: value,
+    );
   }
 }
 
