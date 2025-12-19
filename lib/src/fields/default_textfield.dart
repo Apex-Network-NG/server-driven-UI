@@ -33,8 +33,8 @@ class SDUITextField extends SDUIBaseWidget {
           controller: controller,
           focusNode: focusNode,
           enabled: !field.readonly,
-          maxLength: field.constraints.maxLength,
-          maxLines: field.ui.multilineRows,
+          maxLength: field.constraints?.maxLength,
+          maxLines: field.ui?.multilineRows,
           keyboardType: field.type.textInputType,
           style: theme.textTheme.bodySmall,
           onTapOutside: (event) {
@@ -66,8 +66,8 @@ class SDUITextField extends SDUIBaseWidget {
     }
 
     if (value != null && value.isNotEmpty) {
-      final minLength = field.constraints.minLength;
-      final maxLength = field.constraints.maxLength;
+      final minLength = field.constraints?.minLength;
+      final maxLength = field.constraints?.maxLength;
       if (minLength != null && value.length < minLength) {
         final error = 'Minimum length is $minLength';
         formManager.addError(field.key, error);
@@ -81,7 +81,7 @@ class SDUITextField extends SDUIBaseWidget {
       }
     }
 
-    for (final validation in field.validations) {
+    for (final validation in field.validations ?? []) {
       final result = _validateRule(validation, value);
       if (result != null) {
         formManager.addError(field.key, result);

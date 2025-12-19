@@ -71,10 +71,10 @@ class _SDUIFrameState extends State<SDUIFrame> {
     try {
       _form = SDUIForm.fromJson(widget.formJson);
       setState(() => _isLoading = false);
-    } catch (e) {
+    } catch (e, s) {
       setState(() {
         _isLoading = false;
-        _error = 'Failed to load form: ${e.toString()}';
+        _error = 'Failed to load form: ${e.toString()}, stack: ${s.toString()}';
       });
     }
   }

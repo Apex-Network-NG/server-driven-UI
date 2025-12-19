@@ -37,8 +37,8 @@ class _SDUIFileFieldState extends SDUIBaseState<SDUIFileField> {
 
   _computeSingleFile(PlatformFile file) {
     final path = file.path;
-    final maxFileSize = widget.field.constraints.maxFileSize;
-    final maxTotalSize = widget.field.constraints.maxTotalSize;
+    final maxFileSize = widget.field.constraints?.maxFileSize;
+    final maxTotalSize = widget.field.constraints?.maxTotalSize;
     if (path == null) return;
     final s = File(path);
     final l = s.readAsBytesSync().lengthInBytes;
@@ -65,8 +65,8 @@ class _SDUIFileFieldState extends SDUIBaseState<SDUIFileField> {
   }
 
   _computeMultipleFiles(List<PlatformFile> files) {
-    final maxFileSize = widget.field.constraints.maxFileSize;
-    final maxTotalSize = widget.field.constraints.maxTotalSize;
+    final maxFileSize = widget.field.constraints?.maxFileSize;
+    final maxTotalSize = widget.field.constraints?.maxTotalSize;
     int totalSize = 0;
     if (files.isEmpty) return;
 
@@ -112,9 +112,9 @@ class _SDUIFileFieldState extends SDUIBaseState<SDUIFileField> {
 
   _pickImage() async {
     try {
-      final allowMultiple = widget.field.constraints.allowMultiple;
+      final allowMultiple = widget.field.constraints?.allowMultiple ?? false;
 
-      final constraints = widget.field.constraints.accept;
+      final constraints = widget.field.constraints?.accept ?? [];
       final fileTypesExtension = List<String>.from(
         constraints.map((x) {
           return x.split('/').last;
@@ -234,7 +234,7 @@ class _SDUIFileFieldState extends SDUIBaseState<SDUIFileField> {
 
   @override
   String? validateField(value) {
-    for (final validation in widget.field.validations) {
+    for (final validation in widget.field.validations ?? []) {
       final result = _validateRule(validation, value);
       if (result != null) {
         widget.formManager.addError(widget.field.key, result);
@@ -314,8 +314,8 @@ class _ImageComponent extends StatefulWidget {
 class __ImageComponentState extends State<_ImageComponent> {
   @override
   Widget build(BuildContext context) {
-    final allowMultiple = widget.field.constraints.allowMultiple;
-    final max = widget.field.constraints.max;
+    final allowMultiple = widget.field.constraints?.allowMultiple ?? false;
+    final max = widget.field.constraints?.max;
     final canSelectMore =
         allowMultiple && (max == null || widget.image.length < max);
     final theme = Theme.of(context);

@@ -151,7 +151,7 @@ class _BuildDropSelectionState extends State<_BuildDropSelection> {
       }
     }
 
-    for (final validation in field.validations) {
+    for (final validation in field.validations ?? []) {
       final result = _validateRule(validation, value);
       if (result != null) {
         formManager.addError(field.key, result);

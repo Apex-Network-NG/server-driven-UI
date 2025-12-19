@@ -1,48 +1,36 @@
 class SDUIForm {
   final String name;
-  final String key;
-  final String? title;
   final String? description;
-  final int version;
-  final SDUIMeta meta;
-  final SDUIProperties properties;
-  final SDUIFormData form;
+  final SDUIPages form;
+  final SDUIMeta? meta;
 
   SDUIForm({
     required this.name,
-    required this.key,
-    this.title,
     this.description,
-    required this.version,
-    required this.meta,
-    required this.properties,
     required this.form,
+    this.meta,
   });
 
   factory SDUIForm.fromJson(Map<String, dynamic> json) {
     return SDUIForm(
       name: json['name'],
-      key: json['key'],
-      title: json['title'],
       description: json['description'],
-      version: json['version'],
-      meta: SDUIMeta.fromJson(json['meta']),
-      properties: SDUIProperties.fromJson(json['properties']),
-      form: SDUIFormData.fromJson(json['form']),
+      form: SDUIPages.fromJson(json['pages']),
+      meta: json['meta'] != null ? SDUIMeta.fromJson(json['meta']) : null,
     );
   }
 }
 
 class SDUIMeta {
-  final SDUIUi ui;
-  final SDUII18n i18n;
+  final SDUIUi? ui;
+  final SDUII18n? i18n;
 
-  SDUIMeta({required this.ui, required this.i18n});
+  SDUIMeta({this.ui, this.i18n});
 
-  factory SDUIMeta.fromJson(Map<String, dynamic> json) {
+  factory SDUIMeta.fromJson(Map<dynamic, dynamic> json) {
     return SDUIMeta(
-      ui: SDUIUi.fromJson(json['ui']),
-      i18n: SDUII18n.fromJson(json['i18n']),
+      ui: json['ui'] != null ? SDUIUi.fromJson(json['ui']) : null,
+      i18n: json['i18n'] != null ? SDUII18n.fromJson(json['i18n']) : null,
     );
   }
 }
@@ -125,27 +113,39 @@ class SDUIFormData {
   }
 }
 
+class SDUIPages {
+  final List<SDUIPage> pages;
+  final int pagesCount;
+
+  SDUIPages({required this.pages, required this.pagesCount});
+
+  factory SDUIPages.fromJson(dynamic json) {
+    final pages = json as List<dynamic>;
+    return SDUIPages(
+      pages: pages.map((page) => SDUIPage.fromJson(page)).toList(),
+      pagesCount: pages.length,
+    );
+  }
+}
+
 class SDUIPage {
+  final String id;
   final String key;
   final String label;
-  final String? description;
-  final int order;
   final List<SDUISection> sections;
 
   SDUIPage({
+    required this.id,
     required this.key,
     required this.label,
-    this.description,
-    required this.order,
     required this.sections,
   });
 
   factory SDUIPage.fromJson(Map<String, dynamic> json) {
     return SDUIPage(
+      id: json['id'],
       key: json['key'],
       label: json['label'],
-      description: json['description'],
-      order: json['order'],
       sections: (json['sections'] as List<dynamic>)
           .map((section) => SDUISection.fromJson(section))
           .toList(),
@@ -154,26 +154,26 @@ class SDUIPage {
 }
 
 class SDUISection {
+  final String id;
   final String key;
   final String? label;
   final String? description;
-  final int order;
   final List<SDUIField> fields;
 
   SDUISection({
+    required this.id,
     required this.key,
     this.label,
     this.description,
-    required this.order,
     required this.fields,
   });
 
   factory SDUISection.fromJson(Map<String, dynamic> json) {
     return SDUISection(
+      id: json['id'],
       key: json['key'],
       label: json['label'],
       description: json['description'],
-      order: json['order'],
       fields: (json['fields'] as List<dynamic>)
           .map((field) => SDUIField.fromJson(field))
           .toList(),
@@ -182,6 +182,7 @@ class SDUISection {
 }
 
 class SDUIField {
+  final String id;
   final String key;
   final String label;
   final String? placeholder;
@@ -192,12 +193,13 @@ class SDUIField {
   final bool readonly;
   final bool hiddenField;
   final bool required;
-  final SDUIFieldUi ui;
-  final SDUIConstraints constraints;
-  final List<SDUIValidation> validations;
+  final SDUIFieldUi? ui;
+  final SDUIConstraints? constraints;
+  final List<SDUIValidation>? validations;
   final SDUIOptionProperties? optionProperties;
 
   SDUIField({
+    required this.id,
     required this.key,
     required this.label,
     this.placeholder,
@@ -208,14 +210,15 @@ class SDUIField {
     required this.readonly,
     required this.hiddenField,
     required this.required,
-    required this.ui,
-    required this.constraints,
-    required this.validations,
+    this.ui,
+    this.constraints,
+    this.validations,
     this.optionProperties,
   });
 
   factory SDUIField.fromJson(Map<String, dynamic> json) {
     return SDUIField(
+      id: json['id'],
       key: json['key'],
       label: json['label'],
       placeholder: json['placeholder'],
@@ -228,17 +231,21 @@ class SDUIField {
       readonly: json['readonly'] ?? false,
       hiddenField: json['hidden_field'] ?? false,
       required: json['required'] ?? false,
-      ui: SDUIFieldUi.fromJson(json['ui']),
-      constraints: SDUIConstraints.fromJson(
-        Map<String, dynamic>.from(json['constraints']),
-      ),
-      validations:
-          (json['validations'] as List<dynamic>?)
-              ?.map((validation) => SDUIValidation.fromJson(validation))
-              .toList() ??
-          [],
+      ui: json['ui'] != null ? SDUIFieldUi.fromJson(json['ui']) : null,
+      constraints: json['constraints'] != null
+          ? SDUIConstraints.fromJson(
+              Map<String, dynamic>.from(json['constraints']),
+            )
+          : null,
+      validations: json['validations'] != null
+          ? (json['validations'] as List<dynamic>)
+                .map((validation) => SDUIValidation.fromJson(validation))
+                .toList()
+          : [],
       optionProperties: json['option_properties'] != null
-          ? SDUIOptionProperties.fromJson(json['option_properties'])
+          ? SDUIOptionProperties.fromJson(
+              Map<String, dynamic>.from(json['option_properties']),
+            )
           : null,
     );
   }

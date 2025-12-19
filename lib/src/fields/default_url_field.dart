@@ -33,8 +33,8 @@ class SDUIURLField extends SDUIBaseWidget {
           controller: controller,
           focusNode: focusNode,
           enabled: !field.readonly,
-          maxLength: field.constraints.maxLength,
-          maxLines: field.ui.multilineRows,
+          maxLength: field.constraints?.maxLength,
+          maxLines: field.ui?.multilineRows,
           style: theme.textTheme.bodySmall,
           keyboardType: field.type.textInputType,
           onTapOutside: (event) {
@@ -73,7 +73,7 @@ class SDUIURLField extends SDUIBaseWidget {
       }
     }
 
-    for (final validation in field.validations) {
+    for (final validation in field.validations ?? []) {
       final result = _validateRule(validation, value);
       if (result != null) {
         formManager.addError(field.key, result);

@@ -114,7 +114,7 @@ class _SDUIDateFieldState extends SDUIBaseState<SDUIDateField> {
 
   @override
   String? validateField(value) {
-    for (final validation in widget.field.validations) {
+    for (final validation in widget.field.validations ?? []) {
       final result = _validateRule(validation, value);
       if (result != null) {
         widget.formManager.addError(widget.field.key, result);

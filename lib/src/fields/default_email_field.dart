@@ -1,9 +1,6 @@
 import 'package:email_validator/email_validator.dart';
 import 'package:flutter/material.dart';
 import 'package:sdui/sdui.dart';
-import 'package:sdui/src/renderer/widget.dart';
-import 'package:sdui/src/theme/sdui_theme.dart';
-import 'package:sdui/src/util/extensions.dart';
 import 'package:sdui/src/util/validator.dart';
 
 class SDUIEmailField extends SDUIBaseWidget {
@@ -34,8 +31,8 @@ class SDUIEmailField extends SDUIBaseWidget {
           controller: controller,
           focusNode: focusNode,
           enabled: !field.readonly,
-          maxLength: field.constraints.maxLength,
-          maxLines: field.ui.multilineRows,
+          maxLength: field.constraints?.maxLength,
+          maxLines: field.ui?.multilineRows,
           keyboardType: field.type.textInputType,
           onTapOutside: (event) {
             FocusScope.of(context).unfocus();
@@ -69,8 +66,8 @@ class SDUIEmailField extends SDUIBaseWidget {
     }
 
     if (value != null && value.isNotEmpty) {
-      final minLength = field.constraints.minLength;
-      final maxLength = field.constraints.maxLength;
+      final minLength = field.constraints?.minLength;
+      final maxLength = field.constraints?.maxLength;
       if (minLength != null && value.length < minLength) {
         final error = 'Minimum length is $minLength';
         formManager.addError(field.key, error);
@@ -91,8 +88,8 @@ class SDUIEmailField extends SDUIBaseWidget {
         return error;
       }
 
-      final allowedDomains = field.constraints.allowedDomains;
-      final disallowedDomains = field.constraints.disallowedDomains;
+      final allowedDomains = field.constraints?.allowedDomains ?? [];
+      final disallowedDomains = field.constraints?.disallowedDomains ?? [];
 
       if (allowedDomains.isNotEmpty || disallowedDomains.isNotEmpty) {
         final domain = value.split('@').last;
@@ -113,7 +110,7 @@ class SDUIEmailField extends SDUIBaseWidget {
       }
     }
 
-    for (final validation in field.validations) {
+    for (final validation in field.validations ?? []) {
       final result = _validateRule(validation, value);
       if (result != null) {
         formManager.addError(field.key, result);

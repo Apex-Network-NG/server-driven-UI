@@ -29,9 +29,10 @@ class _CountryPickerSheetState extends State<CountryPickerSheet> {
   @override
   void initState() {
     final allCountries = CountryService().getAll();
-    final allowedCountries = widget.field.constraints.allowedCountries;
-    final excludedCountries = widget.field.constraints.disallowedCountries;
-    final codeType = widget.field.constraints.codeType;
+    final allowedCountries = widget.field.constraints?.allowedCountries ?? [];
+    final excludedCountries =
+        widget.field.constraints?.disallowedCountries ?? [];
+    final codeType = widget.field.constraints?.codeType ?? "";
 
     countries.value = allCountries.where((x) {
       final xIso = x.countryCode;
@@ -54,7 +55,7 @@ class _CountryPickerSheetState extends State<CountryPickerSheet> {
 
   void _onSearchChanged(String query) {
     if (query.isNotEmpty) {
-      final codeType = widget.field.constraints.codeType;
+      final codeType = widget.field.constraints?.codeType ?? "";
       final searchedCountries = countries.value.where((country) {
         final name = country.name.toLowerCase();
         final isoCode = country.countryCode.toLowerCase();
@@ -150,7 +151,7 @@ class _CountryPickerSheetState extends State<CountryPickerSheet> {
                             itemBuilder: (_, index) {
                               final country = countries[index];
                               bool isSelected = false;
-                              if (widget.field.constraints.codeType ==
+                              if (widget.field.constraints?.codeType ==
                                   'alpha_2') {
                                 final code = country.countryCode;
                                 isSelected =

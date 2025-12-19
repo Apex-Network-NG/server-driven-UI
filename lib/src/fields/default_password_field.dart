@@ -30,8 +30,8 @@ class _SDUIPasswordFieldState extends SDUIBaseState<SDUIPasswordField> {
     }
 
     if (value != null && value.isNotEmpty) {
-      final minLength = widget.field.constraints.minLength;
-      final maxLength = widget.field.constraints.maxLength;
+      final minLength = widget.field.constraints?.minLength;
+      final maxLength = widget.field.constraints?.maxLength;
       if (minLength != null && value.length < minLength) {
         final error = 'Minimum length is $minLength';
         widget.formManager.addError(widget.field.key, error);
@@ -45,7 +45,7 @@ class _SDUIPasswordFieldState extends SDUIBaseState<SDUIPasswordField> {
       }
     }
 
-    for (final validation in widget.field.validations) {
+    for (final validation in widget.field.validations ?? []) {
       final result = _validateRule(validation, value);
       if (result != null) {
         widget.formManager.addError(widget.field.key, result);
@@ -90,8 +90,8 @@ class _SDUIPasswordFieldState extends SDUIBaseState<SDUIPasswordField> {
           controller: controller,
           focusNode: focusNode,
           enabled: !widget.field.readonly,
-          maxLength: widget.field.constraints.maxLength,
-          maxLines: widget.field.ui.multilineRows,
+          maxLength: widget.field.constraints?.maxLength,
+          maxLines: widget.field.ui?.multilineRows,
           keyboardType: widget.field.type.textInputType,
           obscureText: _obscurePassword,
           style: theme.textTheme.bodySmall,
