@@ -20,6 +20,20 @@ class SDUIPasswordField extends SDUIBaseStatefulWidget {
 
 class _SDUIPasswordFieldState extends SDUIBaseState<SDUIPasswordField> {
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final defaultValue = widget.field.defaultValue;
+      if (defaultValue == null) return;
+
+      final controller = widget.formManager.getController(widget.field.key);
+      if (controller.text.isEmpty) {
+        controller.text = defaultValue.toString();
+      }
+    });
+  }
+
+  @override
   String? validateField(dynamic value) {
     widget.formManager.clearError(widget.field.key);
 
@@ -61,6 +75,7 @@ class _SDUIPasswordFieldState extends SDUIBaseState<SDUIPasswordField> {
       validation: validation,
       formManager: widget.formManager,
       textValue: value,
+      fieldType: widget.field.type,
     );
   }
 

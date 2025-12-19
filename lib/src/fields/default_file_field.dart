@@ -249,6 +249,7 @@ class _SDUIFileFieldState extends SDUIBaseState<SDUIFileField> {
       validation: validation,
       formManager: widget.formManager,
       textValue: value,
+      fieldType: widget.field.type,
     );
   }
 }

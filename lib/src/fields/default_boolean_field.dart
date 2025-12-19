@@ -18,6 +18,28 @@ class SDUIBoolField extends SDUIBaseStatefulWidget {
 
 class _SDUIBoolFieldState extends SDUIBaseState<SDUIBoolField> {
   @override
+  void initState() {
+    super.initState();
+    final defaultValue = widget.field.defaultValue;
+    bool? initial;
+    if (defaultValue is bool) initial = defaultValue;
+    if (defaultValue is num) initial = defaultValue == 1;
+    if (defaultValue is String) {
+      final normalized = defaultValue.trim().toLowerCase();
+      if (const {'true', '1', 'yes', 'on', 'y'}.contains(normalized)) {
+        initial = true;
+      } else if (const {'false', '0', 'no', 'off', 'n'}
+          .contains(normalized)) {
+        initial = false;
+      }
+    }
+
+    if (initial != null) {
+      widget.formManager.setBooleanValue(widget.field.key, initial);
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     final isChecked = widget.formManager.getBooleanValue(widget.field.key);
     final helpText = widget.field.helpText;
@@ -70,6 +92,7 @@ class _SDUIBoolFieldState extends SDUIBaseState<SDUIBoolField> {
       validation: validation,
       formManager: widget.formManager,
       textValue: value,
+      fieldType: widget.field.type,
     );
   }
 }

@@ -6,7 +6,7 @@ import 'package:sdui/src/util/extensions.dart';
 import 'package:sdui/src/util/sdui_form.dart';
 import 'package:sdui/src/util/validator.dart';
 
-class SDUINumberField extends SDUIBaseWidget {
+class SDUINumberField extends SDUIBaseStatefulWidget {
   const SDUINumberField({
     super.key,
     required super.field,
@@ -15,17 +15,52 @@ class SDUINumberField extends SDUIBaseWidget {
   });
 
   @override
+  SDUIBaseState<SDUIBaseStatefulWidget> createState() =>
+      _SDUINumberFieldState();
+}
+
+class _SDUINumberFieldState extends SDUIBaseState<SDUINumberField> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((timeStamp) {
+      _ensureDefault();
+    });
+  }
+
+  _ensureDefault() async {
+    final defaultValue = widget.field.defaultValue;
+    if (defaultValue == null) return;
+
+    final controller = widget.formManager.getController(widget.field.key);
+    if (controller.text.isNotEmpty) return;
+
+    final value = defaultValue.toString();
+    controller.text = value;
+    _syncValue(value);
+  }
+
+  void _syncValue(String value) {
+    if (value.isEmpty) {
+      widget.formManager.setFieldValue(widget.field.key, null);
+      return;
+    }
+    final parsed = num.tryParse(value);
+    widget.formManager.setFieldValue(widget.field.key, parsed ?? value);
+  }
+
+  @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final sduiTheme = theme.extension<SDUITheme>();
     final baseDecoration = sduiTheme?.inputDecoration ?? InputDecoration();
-    final controller = formManager.getController(field.key);
-    final focusNode = formManager.getFocusNode(field.key);
-    final error = formManager.getError(field.key);
-    final label = field.label;
-    final hintText = field.placeholder ?? label;
-    final helpText = field.helpText;
-    final regex = field.constraints?.regex;
+    final controller = widget.formManager.getController(widget.field.key);
+    final focusNode = widget.formManager.getFocusNode(widget.field.key);
+    final error = widget.formManager.getError(widget.field.key);
+    final label = widget.field.label;
+    final hintText = widget.field.placeholder ?? label;
+    final helpText = widget.field.helpText;
+    final regex = widget.field.constraints?.regex;
 
     return Column(
       mainAxisAlignment: MainAxisAlignment.start,
@@ -34,10 +69,10 @@ class SDUINumberField extends SDUIBaseWidget {
         TextFormField(
           controller: controller,
           focusNode: focusNode,
-          enabled: !field.readonly,
-          maxLength: field.constraints?.maxLength,
-          maxLines: field.ui?.multilineRows,
-          keyboardType: field.type.textInputType,
+          enabled: !widget.field.readonly,
+          maxLength: widget.field.constraints?.maxLength,
+          maxLines: widget.field.ui?.multilineRows,
+          keyboardType: widget.field.type.textInputType,
           style: theme.textTheme.bodySmall,
           onTapOutside: (event) {
             FocusScope.of(context).unfocus();
@@ -47,7 +82,8 @@ class SDUINumberField extends SDUIBaseWidget {
             if (regex != null) FilteringTextInputFormatter.allow(RegExp(regex)),
           ],
           onChanged: (value) {
-            onChanged?.call(field.key, value);
+            widget.onChanged?.call(widget.field.key, value);
+            _syncValue(value);
             validateField(value);
           },
           decoration: baseDecoration.copyWith(
@@ -63,34 +99,34 @@ class SDUINumberField extends SDUIBaseWidget {
 
   @override
   String? validateField(value) {
-    formManager.clearError(field.key);
+    widget.formManager.clearError(widget.field.key);
 
-    if (field.required && (value == null || value.isEmpty)) {
-      final error = '${field.label} is required';
-      formManager.addError(field.key, error);
+    if (widget.field.required && (value == null || value.isEmpty)) {
+      final error = '${widget.field.label} is required';
+      widget.formManager.addError(widget.field.key, error);
       return error;
     }
 
     if (value != null && value.isNotEmpty) {
-      final minLength = field.constraints?.minLength;
-      final maxLength = field.constraints?.maxLength;
+      final minLength = widget.field.constraints?.minLength;
+      final maxLength = widget.field.constraints?.maxLength;
       if (minLength != null && value.length < minLength) {
         final error = 'Minimum length is $minLength';
-        formManager.addError(field.key, error);
+        widget.formManager.addError(widget.field.key, error);
         return error;
       }
 
       if (maxLength != null && value.length > maxLength) {
         final error = 'Maximum length is $maxLength';
-        formManager.addError(field.key, error);
+        widget.formManager.addError(widget.field.key, error);
         return error;
       }
     }
 
-    for (final validation in field.validations ?? []) {
+    for (final validation in widget.field.validations ?? []) {
       final result = _validateRule(validation, value);
       if (result != null) {
-        formManager.addError(field.key, result);
+        widget.formManager.addError(widget.field.key, result);
         return result;
       }
     }
@@ -101,8 +137,9 @@ class SDUINumberField extends SDUIBaseWidget {
   String? _validateRule(SDUIValidation validation, String? value) {
     return FieldValidator.instance.validateRequired(
       validation: validation,
-      formManager: formManager,
+      formManager: widget.formManager,
       textValue: value,
+      fieldType: widget.field.type,
     );
   }
 }

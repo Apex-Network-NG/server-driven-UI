@@ -24,6 +24,11 @@ class SDUITextField extends SDUIBaseWidget {
     final label = field.label;
     final hintText = field.placeholder ?? label;
     final helpText = field.helpText;
+    final defaultValue = field.defaultValue;
+
+    if (defaultValue != null && controller.text.isEmpty) {
+      controller.text = defaultValue.toString();
+    }
 
     return Column(
       mainAxisAlignment: MainAxisAlignment.start,
@@ -97,6 +102,7 @@ class SDUITextField extends SDUIBaseWidget {
       validation: validation,
       formManager: formManager,
       textValue: value,
+      fieldType: field.type,
     );
   }
 }

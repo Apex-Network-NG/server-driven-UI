@@ -20,6 +20,25 @@ class SDUIDateField extends SDUIBaseStatefulWidget {
 }
 
 class _SDUIDateFieldState extends SDUIBaseState<SDUIDateField> {
+  @override
+  void initState() {
+    super.initState();
+    final current = widget.formManager.getDateValue(widget.field.key);
+    final defaultValue = widget.field.defaultValue;
+
+    if (current == null && defaultValue != null) {
+      DateTime? parsed;
+      if (defaultValue is DateTime) {
+        parsed = defaultValue;
+      } else if (defaultValue is String) {
+        parsed = DateTime.tryParse(defaultValue);
+      }
+      if (parsed != null) {
+        widget.formManager.setDateValue(widget.field.key, parsed);
+      }
+    }
+  }
+
   _handleDateSelection() async {
     DateTime? selectedDate;
 
@@ -129,6 +148,7 @@ class _SDUIDateFieldState extends SDUIBaseState<SDUIDateField> {
       validation: validation,
       formManager: widget.formManager,
       textValue: value,
+      fieldType: widget.field.type,
     );
   }
 }

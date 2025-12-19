@@ -53,9 +53,19 @@ class _BuildDropSelectionState extends State<_BuildDropSelection> {
     final headerText = field.label;
     final formManager = widget.widget.formManager;
 
-    final selectedValue = formManager.getSelectedOption(field.key);
+    List<String>? selectedValue = formManager.getSelectedOption(field.key);
     final optionsData = field.optionProperties?.data ?? [];
     final optionsType = field.optionProperties?.type;
+    final defaultValue = field.defaultValue;
+
+    if ((selectedValue == null || selectedValue.isEmpty) &&
+        defaultValue != null) {
+      final defaults = defaultValue is List
+          ? defaultValue.map((e) => e.toString()).toList()
+          : [defaultValue.toString()];
+      formManager.setSelectedOption(field.key, defaults);
+      selectedValue = defaults;
+    }
 
     final selectedOption = optionsData
         .where((option) => selectedValue?.contains(option.key) ?? false)
@@ -164,6 +174,7 @@ class _BuildDropSelectionState extends State<_BuildDropSelection> {
       validation: validation,
       formManager: widget.widget.formManager,
       textValue: value,
+      fieldType: widget.widget.field.type,
     );
   }
 }
@@ -183,10 +194,19 @@ class _BuildRadioOptionsState extends State<_BuildRadioOptions> {
     final optionsData = widget.widget.field.optionProperties?.data ?? [];
     final headerText = widget.widget.field.label;
     final theme = Theme.of(context);
-    final value = widget.widget.formManager.getSelectedOption(
+    List<String>? value = widget.widget.formManager.getSelectedOption(
       widget.widget.field.key,
     );
     final formManager = widget.widget.formManager;
+    final defaultValue = widget.widget.field.defaultValue;
+
+    if ((value == null || value.isEmpty) && defaultValue != null) {
+      final defaults = defaultValue is List
+          ? defaultValue.map((e) => e.toString()).toList()
+          : [defaultValue.toString()];
+      formManager.setSelectedOption(widget.widget.field.key, defaults);
+      value = defaults;
+    }
 
     return Column(
       mainAxisAlignment: MainAxisAlignment.start,

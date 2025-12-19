@@ -121,8 +121,8 @@ class FieldValidator {
           allRules: allRules,
         )) {
           final min = _toBytesSize(params.isNotEmpty ? params[0] : null);
-          return validation.message ??
-              (min == null ? 'Value is below the minimum' : 'Minimum is $min');
+          if (validation.message != null) return validation.message;
+          return _minMessage(min, fieldType: fieldType);
         }
         return null;
 
@@ -135,8 +135,8 @@ class FieldValidator {
           allRules: allRules,
         )) {
           final max = _toBytesSize(params.isNotEmpty ? params[0] : null);
-          return validation.message ??
-              (max == null ? 'Value exceeds the maximum' : 'Maximum is $max');
+          if (validation.message != null) return validation.message;
+          return _maxMessage(max, fieldType: fieldType);
         }
         return null;
 
@@ -1034,6 +1034,73 @@ class FieldValidator {
     }
 
     return null;
+  }
+
+  static String _formatLimit(double? value) {
+    if (value == null) return '';
+    if (value == value.roundToDouble()) return value.toInt().toString();
+    return value.toString();
+  }
+
+  static String _normalizeFieldType(String? fieldType) =>
+      fieldType?.trim().toLowerCase() ?? '';
+
+  String _minMessage(double? min, {required String? fieldType}) {
+    final limit = _formatLimit(min);
+    final normalizedType = _normalizeFieldType(fieldType);
+
+    switch (normalizedType) {
+      case 'number':
+      case 'rating':
+        return limit.isEmpty
+            ? 'Value is below the minimum'
+            : 'Minimum value is $limit';
+      case 'file':
+      case 'image':
+      case 'video':
+      case 'document':
+        return limit.isEmpty
+            ? 'Value is below the minimum'
+            : 'Minimum file size/count is $limit';
+      case 'options':
+      case 'tag':
+        if (limit.isEmpty) return 'Please select more options';
+        final label = limit == '1' ? 'option' : 'options';
+        return 'Select at least $limit $label';
+      default:
+        return limit.isEmpty
+            ? 'Value is below the minimum'
+            : 'Minimum length is $limit';
+    }
+  }
+
+  String _maxMessage(double? max, {required String? fieldType}) {
+    final limit = _formatLimit(max);
+    final normalizedType = _normalizeFieldType(fieldType);
+
+    switch (normalizedType) {
+      case 'number':
+      case 'rating':
+        return limit.isEmpty
+            ? 'Value exceeds the maximum'
+            : 'Maximum value is $limit';
+      case 'file':
+      case 'image':
+      case 'video':
+      case 'document':
+        return limit.isEmpty
+            ? 'Value exceeds the maximum'
+            : 'Maximum file size/count is $limit';
+      case 'options':
+      case 'tag':
+        if (limit.isEmpty) return 'Please select fewer options';
+        final label = limit == '1' ? 'option' : 'options';
+        return 'Select at most $limit $label';
+      default:
+        return limit.isEmpty
+            ? 'Value exceeds the maximum'
+            : 'Maximum length is $limit';
+    }
   }
 
   static RegExp _compileRegex(String pattern) {

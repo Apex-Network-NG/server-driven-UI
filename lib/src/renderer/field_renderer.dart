@@ -170,6 +170,7 @@ class _SDUIFieldRendererState extends State<SDUIFieldRenderer> {
       case 'tag':
       case 'rating':
       case 'hidden':
+        return const SizedBox.shrink();
       case 'divider':
       case 'spacing':
 

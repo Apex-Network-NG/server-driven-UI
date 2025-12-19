@@ -21,6 +21,19 @@ class SDUICountryField extends SDUIBaseStatefulWidget {
 class _SDUICountryFieldState extends SDUIBaseState<SDUICountryField> {
   final countries = CountryService().getAll();
 
+  @override
+  void initState() {
+    super.initState();
+    final defaultValue = widget.field.defaultValue;
+    final existing = widget.formManager.getSelectedCountry(widget.field.key);
+    if (defaultValue != null && (existing == null || existing.isEmpty)) {
+      widget.formManager.updateSelectedCountry(
+        widget.field.key,
+        defaultValue.toString(),
+      );
+    }
+  }
+
   _selectCountry() async {
     final country = widget.formManager.getSelectedCountry(widget.field.key);
     Country? selectedCountry;
@@ -80,6 +93,7 @@ class _SDUICountryFieldState extends SDUIBaseState<SDUICountryField> {
       validation: validation,
       formManager: widget.formManager,
       textValue: value,
+      fieldType: widget.field.type,
     );
   }
 }
