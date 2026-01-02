@@ -1,6 +1,7 @@
 // Core
 export 'src/core/initializer.dart';
 export 'src/core/sdui_frame.dart';
+export 'src/core/service/forms/form_provider.dart';
 
 // Renderer
 export 'src/renderer/field_renderer.dart';

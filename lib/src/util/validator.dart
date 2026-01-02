@@ -956,7 +956,7 @@ class FieldValidator {
   static int? _toInt(Object? value) {
     if (value is int) return value;
     final n = _toNumber(value);
-    return n == null ? null : n.toInt();
+    return n?.toInt();
   }
 
   static double? _toBytesSize(Object? value) {
@@ -1280,8 +1280,9 @@ class FieldValidator {
     final disallowedSet = disallowed.map((e) => e.toLowerCase()).toSet();
 
     if (allowedSet.isNotEmpty && !allowedSet.contains(domain)) return false;
-    if (disallowedSet.isNotEmpty && disallowedSet.contains(domain))
+    if (disallowedSet.isNotEmpty && disallowedSet.contains(domain)) {
       return false;
+    }
 
     return true;
   }

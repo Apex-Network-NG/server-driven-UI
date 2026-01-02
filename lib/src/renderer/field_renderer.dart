@@ -7,6 +7,7 @@ import 'package:sdui/src/fields/default_file_field.dart';
 import 'package:sdui/src/fields/default_number_field.dart';
 import 'package:sdui/src/fields/default_password_field.dart';
 import 'package:sdui/src/fields/default_phone_field.dart';
+import 'package:sdui/src/fields/default_tag_field.dart';
 import 'package:sdui/src/fields/default_textfield.dart';
 import 'package:sdui/src/fields/default_url_field.dart';
 import 'package:sdui/src/fields/default_boolean_field.dart';
@@ -66,10 +67,13 @@ class _SDUIFieldRendererState extends State<SDUIFieldRenderer> {
 
   Widget _buildFieldWidget() {
     // Check if field should be visible based on conditions
-    if (widget.field.hiddenField) {
-      return const SizedBox.shrink();
-    }
 
+    final isHidden = widget.formManager.isHidden(
+      widget.field.key,
+      fallback: widget.field.hiddenField,
+    );
+
+    if (isHidden) return const SizedBox.shrink();
     final customWidget = SDUIWidgetRegistry.instance.create(
       field: widget.field,
       formManager: widget.formManager,
@@ -77,9 +81,7 @@ class _SDUIFieldRendererState extends State<SDUIFieldRenderer> {
     );
 
     // If custom widget exists, use it
-    if (customWidget != null) {
-      return customWidget;
-    }
+    if (customWidget != null) return customWidget;
 
     switch (widget.field.type) {
       // Text field types
@@ -168,6 +170,11 @@ class _SDUIFieldRendererState extends State<SDUIFieldRenderer> {
         );
 
       case 'tag':
+        return SDUITagField(
+          field: widget.field,
+          formManager: widget.formManager,
+          onChanged: widget.onChanged,
+        );
       case 'rating':
       case 'hidden':
         return const SizedBox.shrink();

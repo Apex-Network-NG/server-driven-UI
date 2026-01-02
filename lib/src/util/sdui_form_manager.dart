@@ -14,6 +14,7 @@ class FormManager extends ChangeNotifier {
   final Map<String, DateTime?> datetimeValues = {};
   final Map<String, List<String>> tagValues = {};
   final Map<String, String?> fileValues = {};
+  final Map<String, bool> _hiddenByKey = {};
 
   /// Updates the selected country for a specific field
   ///
@@ -441,5 +442,15 @@ class FormManager extends ChangeNotifier {
     for (var focusNode in focusNodes.values) {
       focusNode.dispose();
     }
+  }
+
+  bool isHidden(String key, {bool fallback = false}) {
+    return _hiddenByKey[key] ?? fallback;
+  }
+
+  void setHidden(String key, bool hidden) {
+    if (_hiddenByKey[key] == hidden) return;
+    _hiddenByKey[key] = hidden;
+    notifyListeners();
   }
 }

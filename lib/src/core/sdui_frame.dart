@@ -1,4 +1,7 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
+import 'package:sdui/src/core/service/forms/form_provider.dart';
 import 'package:sdui/src/renderer/renderer.dart';
 import 'package:sdui/src/util/sdui_form.dart';
 import 'package:sdui/src/util/sdui_form_manager.dart';
@@ -8,7 +11,7 @@ import 'package:sdui/src/util/sdui_form_manager.dart';
 /// Example usage:
 /// ```dart
 /// SDUIFrame(
-///   formJson: jsonData,
+///   formId: 'form-id',
 ///   onSubmit: (data) {
 ///     print('Form submitted: $data');
 ///   },
@@ -19,7 +22,8 @@ import 'package:sdui/src/util/sdui_form_manager.dart';
 /// ```
 class SDUIFrame extends StatefulWidget {
   /// The form configuration as JSON
-  final Map<String, dynamic> formJson;
+  final Map<String, dynamic>? formJson;
+  final String? formId;
 
   /// Callback when form is submitted
   final Function(Map<String, dynamic>)? onSubmit;
@@ -44,7 +48,8 @@ class SDUIFrame extends StatefulWidget {
 
   const SDUIFrame({
     super.key,
-    required this.formJson,
+    this.formJson,
+    this.formId,
     this.onSubmit,
     this.onFieldChanged,
     this.showNavigationButtons = true,
@@ -60,6 +65,7 @@ class _SDUIFrameState extends State<SDUIFrame> {
   bool _isLoading = true;
   String? _error;
   final formManager = FormManager();
+  final provider = FormProvider.instance;
 
   @override
   void initState() {
@@ -67,9 +73,20 @@ class _SDUIFrameState extends State<SDUIFrame> {
     _initializeForm();
   }
 
-  void _initializeForm() {
+  void _initializeForm() async {
     try {
-      _form = SDUIForm.fromJson(widget.formJson);
+      setState(() => _isLoading = true);
+      if (widget.formJson != null) {
+        _form = SDUIForm.fromJson(widget.formJson!);
+      } else if (widget.formId != null) {
+        WidgetsBinding.instance.addPostFrameCallback((_) async {
+          final jsonString = await provider.fetchFormJsonString(widget.formId!);
+          if (jsonString != null) {
+            final formJson = jsonDecode(jsonString) as Map<String, dynamic>;
+            _form = SDUIForm.fromJson(formJson);
+          }
+        });
+      }
       setState(() => _isLoading = false);
     } catch (e, s) {
       setState(() {

@@ -54,6 +54,7 @@ class SDUITextField extends SDUIBaseWidget {
             errorText: error,
             labelText: label,
             helperText: helpText,
+            helperMaxLines: 4,
           ),
         ),
       ],

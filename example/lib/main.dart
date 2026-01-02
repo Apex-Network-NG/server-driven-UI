@@ -36,6 +36,8 @@ class _MyHomePageState extends State<MyHomePage> {
     super.initState();
   }
 
+  tap() async {}
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -49,62 +51,129 @@ class _MyHomePageState extends State<MyHomePage> {
           Expanded(
             child: SDUIFrame(
               formJson: {
-                "name": "Untitled Form",
+                "name": "Euro Sepa IBAN Form - Version 1",
                 "description": "",
                 "pages": [
                   {
-                    "id": "019b373d-b562-740e-9373-539e94c8d993",
+                    "id": "019b744e-ab87-7253-aceb-7a3f66732656",
                     "key": "page_1",
-                    "label": "Page 1",
+                    "label": "",
+                    "description": null,
+                    "order": 1,
+                    "textOnly": false,
+                    "hidden": false,
+                    "conditionals": [],
                     "sections": [
                       {
-                        "id": "019b373d-b562-740e-9373-55daaef54cdf",
+                        "id": "019b744e-ab87-7253-aceb-7a3f660258e4",
                         "key": "section_1",
-                        "label": "Section 1",
+                        "label": null,
+                        "description": null,
+                        "order": 1,
+                        "hidden": false,
+                        "conditionals": [],
                         "fields": [
                           {
-                            "id": "019b373d-d6f4-70f3-b78f-a7422b78d531",
+                            "id": "019b2ec6-3c37-74db-a639-5fd955333c3c",
+                            "key": "full_name",
+                            "label": "Full name of the account holder",
+                            "placeholder": "John Doe",
+                            "help_text": null,
+                            "default": null,
                             "type": "short-text",
-                            "key": "short_text_1",
-                            "label": "Short Text",
-                            "required": false,
+                            "hidden": false,
+                            "visible_if": {"all": [], "any": [], "not": null},
+                            "conditionals": [],
                             "readonly": false,
-                            "validations": [],
-                          },
-                          {
-                            "id": "019b373e-4369-760b-9d5d-56797aee5b7f",
-                            "type": "number",
-                            "key": "number_1",
-                            "label": "Number",
-                            "required": false,
-                            "readonly": false,
-                            "default": "{field:hidden_1}",
-                            "validations": [],
-                          },
-                          {
-                            "id": "019b3746-9d9f-72f0-8eb6-0eff225a4bc9",
-                            "type": "hidden",
-                            "key": "hidden_1",
-                            "label": "Test",
-                            "required": false,
-                            "readonly": false,
-                            "default": "{field:short_text_1}",
-                            "validations": [],
-                          },
-                          {
-                            "id": "019b3755-db68-72b0-9f92-9e6ebb89d6a6",
-                            "type": "file",
-                            "key": "file_1",
-                            "label": "File",
-                            "required": false,
-                            "readonly": false,
-                            "constraints": {
-                              "accept": [],
-                              "allow_multiple": false,
-                              "min": 1,
+                            "required": true,
+                            "ui": {
+                              "icon": null,
+                              "prefix": null,
+                              "suffix": null,
+                              "mask": null,
+                              "multiline_rows": 1,
                             },
-                            "default": "{field:hidden_1}",
                             "validations": [],
+                            "constraints": {
+                              "min": null,
+                              "max": null,
+                              "min_length": null,
+                              "max_length": null,
+                              "accept": [],
+                              "max_size": null,
+                              "step": null,
+                            },
+                          },
+                          {
+                            "id": "019b2ec7-2609-71b1-9a56-e4b0fc0ecd69",
+                            "key": "iban",
+                            "label": "IBAN",
+                            "placeholder": "e.g. DE44 0000 0000 0000 0000 00",
+                            "help_text":
+                                "IBANs are international bank account numbers used for transfers abroad. They always begin with a two-letter country code, like DE for Germany.",
+                            "default": null,
+                            "type": "short-text",
+                            "hidden": false,
+                            "visible_if": {"all": [], "any": [], "not": null},
+                            "conditionals": [],
+                            "readonly": false,
+                            "required": true,
+                            "ui": {
+                              "icon": null,
+                              "prefix": null,
+                              "suffix": null,
+                              "mask": null,
+                              "multiline_rows": 1,
+                            },
+                            "validations": [
+                              {
+                                "rule": "regex",
+                                "params": [
+                                  r"^(?:((?:IT|SM)\d{2}[A-Z]{1}\d{22})|(NL\d{2}[A-Z]{4}\d{10})|(LV\d{2}[A-Z]{4}\d{13})|((?:BG|GB|IE)\d{2}[A-Z]{4}\d{14})|(GI\d{2}[A-Z]{4}\d{15})|(RO\d{2}[A-Z]{4}\d{16})|(MT\d{2}[A-Z]{4}\d{23})|(NO\d{13})|((?:DK|FI|FO)\d{16})|((?:SI)\d{17})|((?:AT|EE|LU|LT)\d{18})|((?:HR|LI|CH)\d{19})|((?:DE)\d{20})|((?:CZ|ES|SK|SE)\d{22})|(PT\d{23})|((?:IS)\d{24})|((?:BE)\d{14})|((?:FR|MC|GR)\d{25})|((?:PL|HU|CY)\d{26}))$",
+                                ],
+                                "message": null,
+                              },
+                            ],
+                            "constraints": {
+                              "min": null,
+                              "max": null,
+                              "min_length": null,
+                              "max_length": null,
+                              "accept": [],
+                              "max_size": null,
+                              "step": null,
+                            },
+                          },
+                          {
+                            "id": "019b2ee2-0351-7057-8da9-0e2688d56fa7",
+                            "key": "email",
+                            "label": "Enter their email (optional)",
+                            "placeholder": "Email address",
+                            "help_text": null,
+                            "default": null,
+                            "type": "text",
+                            "hidden": false,
+                            "visible_if": {"all": [], "any": [], "not": null},
+                            "conditionals": [],
+                            "readonly": false,
+                            "required": false,
+                            "ui": {
+                              "icon": null,
+                              "prefix": null,
+                              "suffix": null,
+                              "mask": null,
+                              "multiline_rows": 2,
+                            },
+                            "validations": [],
+                            "constraints": {
+                              "min": null,
+                              "max": null,
+                              "min_length": null,
+                              "max_length": null,
+                              "accept": [],
+                              "max_size": null,
+                              "step": null,
+                            },
                           },
                         ],
                       },
@@ -113,8 +182,10 @@ class _MyHomePageState extends State<MyHomePage> {
                 ],
                 "meta": {},
               },
+
               onSubmit: (formData) {
-                print('Form submitted with data: $formData');
+                tap();
+                // print('Form submitted with data: $formData');
                 // Handle form submission
               },
               onFieldChanged: (key, value) {

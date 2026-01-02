@@ -1,3 +1,5 @@
+import 'package:sdui/src/util/data_enhance.dart';
+
 class SDUIForm {
   final String name;
   final String? description;
@@ -133,15 +135,20 @@ class SDUIPage {
   final String key;
   final String label;
   final List<SDUISection> sections;
+  final bool hidden;
+  final List<SDUIConditional>? conditionals;
 
   SDUIPage({
     required this.id,
     required this.key,
     required this.label,
     required this.sections,
+    required this.hidden,
+    required this.conditionals,
   });
 
   factory SDUIPage.fromJson(Map<String, dynamic> json) {
+    final conditionals = dataGet(json, 'conditionals', defaultValue: const []);
     return SDUIPage(
       id: json['id'],
       key: json['key'],
@@ -149,6 +156,12 @@ class SDUIPage {
       sections: (json['sections'] as List<dynamic>)
           .map((section) => SDUISection.fromJson(section))
           .toList(),
+      hidden: json['hidden'] ?? false,
+      conditionals:
+          conditionals
+              .map<SDUIConditional>((e) => SDUIConditional.fromJson(e))
+              .toList() ??
+          [],
     );
   }
 }
@@ -159,6 +172,8 @@ class SDUISection {
   final String? label;
   final String? description;
   final List<SDUIField> fields;
+  final bool hidden;
+  final List<SDUIConditional>? conditionals;
 
   SDUISection({
     required this.id,
@@ -166,9 +181,12 @@ class SDUISection {
     this.label,
     this.description,
     required this.fields,
+    required this.hidden,
+    required this.conditionals,
   });
 
   factory SDUISection.fromJson(Map<String, dynamic> json) {
+    final conditionals = dataGet(json, 'conditionals', defaultValue: const []);
     return SDUISection(
       id: json['id'],
       key: json['key'],
@@ -177,6 +195,12 @@ class SDUISection {
       fields: (json['fields'] as List<dynamic>)
           .map((field) => SDUIField.fromJson(field))
           .toList(),
+      hidden: json['hidden'] ?? false,
+      conditionals:
+          conditionals
+              .map<SDUIConditional>((e) => SDUIConditional.fromJson(e))
+              .toList() ??
+          [],
     );
   }
 }
@@ -197,6 +221,7 @@ class SDUIField {
   final SDUIConstraints? constraints;
   final List<SDUIValidation>? validations;
   final SDUIOptionProperties? optionProperties;
+  final List<SDUIConditional>? conditionals;
 
   SDUIField({
     required this.id,
@@ -214,9 +239,11 @@ class SDUIField {
     this.constraints,
     this.validations,
     this.optionProperties,
+    this.conditionals,
   });
 
   factory SDUIField.fromJson(Map<String, dynamic> json) {
+    final conditionals = dataGet(json, 'conditionals', defaultValue: const []);
     return SDUIField(
       id: json['id'],
       key: json['key'],
@@ -229,7 +256,7 @@ class SDUIField {
           ? SDUIVisibleIf.fromJson(json['visible_if'])
           : null,
       readonly: json['readonly'] ?? false,
-      hiddenField: json['hidden_field'] ?? false,
+      hiddenField: (json['hidden_field'] ?? json['hidden'] ?? false) as bool,
       required: json['required'] ?? false,
       ui: json['ui'] != null ? SDUIFieldUi.fromJson(json['ui']) : null,
       constraints: json['constraints'] != null
@@ -247,6 +274,11 @@ class SDUIField {
               Map<String, dynamic>.from(json['option_properties']),
             )
           : null,
+      conditionals:
+          conditionals
+              .map<SDUIConditional>((e) => SDUIConditional.fromJson(e))
+              .toList() ??
+          [],
     );
   }
 }
@@ -426,5 +458,79 @@ class SDUIOption {
   @override
   String toString() {
     return 'SDUIOption(key: $key, value: $value)';
+  }
+}
+
+class SDUIConditional {
+  final SDUIConditionalWhen when;
+  final SDUIConditionalThen then;
+
+  SDUIConditional({required this.when, required this.then});
+
+  factory SDUIConditional.fromJson(Map<String, dynamic> json) {
+    return SDUIConditional(
+      when: SDUIConditionalWhen.fromJson(
+        Map<String, dynamic>.from(json['when']),
+      ),
+      then: SDUIConditionalThen.fromJson(
+        Map<String, dynamic>.from(json['then']),
+      ),
+    );
+  }
+}
+
+class SDUIConditionalWhen {
+  final String field;
+  final String operator;
+  final dynamic value;
+
+  SDUIConditionalWhen({
+    required this.field,
+    required this.operator,
+    required this.value,
+  });
+
+  factory SDUIConditionalWhen.fromJson(Map<String, dynamic> json) {
+    return SDUIConditionalWhen(
+      field: json['field'] as String,
+      operator: json['operator'] as String,
+      value: json['value'],
+    );
+  }
+}
+
+class SDUIConditionalThen {
+  final String action;
+  final List<SDUIConditionalTarget> targets;
+
+  SDUIConditionalThen({required this.action, required this.targets});
+
+  factory SDUIConditionalThen.fromJson(Map<String, dynamic> json) {
+    return SDUIConditionalThen(
+      action: json['action'] as String,
+      targets:
+          (json['targets'] as List<dynamic>?)
+              ?.map(
+                (e) => SDUIConditionalTarget.fromJson(
+                  Map<String, dynamic>.from(e),
+                ),
+              )
+              .toList() ??
+          const [],
+    );
+  }
+}
+
+class SDUIConditionalTarget {
+  final String type;
+  final String key;
+
+  SDUIConditionalTarget({required this.type, required this.key});
+
+  factory SDUIConditionalTarget.fromJson(Map<String, dynamic> json) {
+    return SDUIConditionalTarget(
+      type: json['type'] as String,
+      key: json['key'] as String,
+    );
   }
 }
