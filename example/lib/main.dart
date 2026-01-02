@@ -2,17 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:sdui/sdui.dart';
 
 void main() {
-  SDUIWidgetRegistry.instance.register(
-    SDUIFieldType.shortText,
-    ({required field, required formManager, onChanged}) {
-      return BrandedTextField(
-        field: field,
-        formManager: formManager,
-        onChanged: onChanged,
-      );
-    },
-    override: true,
-  );
+  SDUIWidgetRegistry.instance.register(SDUIFieldType.shortText, ({
+    required field,
+    required formManager,
+    onChanged,
+  }) {
+    return BrandedTextField(
+      field: field,
+      formManager: formManager,
+      onChanged: onChanged,
+    );
+  }, override: true);
   runApp(const MyApp());
 }
 
@@ -240,10 +240,8 @@ class BrandedTextField extends SDUIBaseWidget {
           decoration: InputDecoration(
             hintText: field.placeholder ?? field.label,
             filled: true,
-            fillColor: theme.colorScheme.surfaceVariant,
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
+            fillColor: theme.colorScheme.surface,
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
           ),
           onChanged: (value) => onFieldChanged(value),
         ),
