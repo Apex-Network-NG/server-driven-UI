@@ -156,16 +156,14 @@ class _SDUITagFieldState extends SDUIBaseState<SDUITagField> {
                 Wrap(
                   spacing: 8,
                   runSpacing: 6,
-                  children: tags
-                      .map(
-                        (tag) => InputChip(
-                          label: Text(tag, style: theme.textTheme.bodySmall),
-                          onDeleted: widget.field.readonly
-                              ? null
-                              : () => _removeTag(tag),
-                        ),
-                      )
-                      .toList(),
+                  children: tags.map((tag) {
+                    return InputChip(
+                      label: Text(tag, style: theme.textTheme.bodySmall),
+                      onDeleted: widget.field.readonly
+                          ? null
+                          : () => _removeTag(tag),
+                    );
+                  }).toList(),
                 ),
                 const SizedBox(height: 8),
               ],

@@ -1,7 +1,9 @@
 import 'package:email_validator/email_validator.dart';
 import 'package:flutter/material.dart';
 import 'package:phone_numbers_parser/phone_numbers_parser.dart';
-import 'package:sdui/sdui.dart';
+import 'package:sdui/src/util/extensions.dart';
+import 'package:sdui/src/util/sdui_form.dart';
+import 'package:sdui/src/util/sdui_form_manager.dart';
 
 /// Central validation helper for SDUI forms.
 ///
@@ -313,6 +315,98 @@ class FieldValidator {
     }
   }
 
+  /// Validates a field using SDUI defaults (required + constraints + rules).
+  ///
+  /// Returns the first error message encountered, or `null` when valid.
+  String? validateField({
+    required SDUIField field,
+    required FormManager formManager,
+    Object? value,
+    String? selectedCountryCode,
+  }) {
+    final validations = field.validations ?? const <SDUIValidation>[];
+    final allRules = validations.map((v) => v.rule.toLowerCase()).toList();
+
+    final textValue = value?.toString();
+    final booleanValue = value is bool ? value : null;
+    final timeValue = value is TimeOfDay ? value : null;
+    final dateValue = value is DateTime ? value : _toDateTime(value);
+
+    final resolvedCountryCode =
+        selectedCountryCode?.trim().isNotEmpty == true
+            ? selectedCountryCode
+            : formManager.getSelectedCountry(field.key);
+
+    if (field.required && !allRules.contains('required')) {
+      final result = validateRequired(
+        validation: SDUIValidation(
+          rule: 'required',
+          message: '${field.label} is required',
+          params: const [],
+        ),
+        formManager: formManager,
+        textValue: textValue,
+        booleanValue: booleanValue,
+        dateValue: dateValue,
+        timeValue: timeValue,
+        rawValue: value,
+        fieldType: field.type,
+        allRules: allRules,
+        selectedCountryCode: resolvedCountryCode,
+      );
+      if (result != null) return result;
+    }
+
+    final constraintsError = validateConstraints(
+      fieldType: field.type,
+      constraints: _constraintsToMap(field.constraints),
+      optionProperties: _optionPropertiesToMap(field.optionProperties),
+      rawValue: value,
+      textValue: textValue,
+      booleanValue: booleanValue,
+      dateValue: dateValue,
+      timeValue: timeValue,
+    );
+    if (constraintsError != null) return constraintsError;
+
+    if (field.type == 'url' &&
+        textValue != null &&
+        textValue.isNotEmpty &&
+        !textValue.isValidUrl) {
+      return 'Please enter a valid URL';
+    }
+
+    if (field.type == 'phone' &&
+        textValue != null &&
+        textValue.isNotEmpty &&
+        !allRules.contains('phone')) {
+      if (resolvedCountryCode == null || resolvedCountryCode.trim().isEmpty) {
+        return 'Please select a country';
+      }
+      if (!validatePhone(textValue, resolvedCountryCode)) {
+        return 'Please enter a valid phone number';
+      }
+    }
+
+    for (final validation in validations) {
+      final result = validateRequired(
+        validation: validation,
+        formManager: formManager,
+        textValue: textValue,
+        booleanValue: booleanValue,
+        dateValue: dateValue,
+        timeValue: timeValue,
+        rawValue: value,
+        fieldType: field.type,
+        allRules: allRules,
+        selectedCountryCode: resolvedCountryCode,
+      );
+      if (result != null) return result;
+    }
+
+    return null;
+  }
+
   /// Validates a field's `constraints` similarly to the PHP SubmissionValidator.
   ///
   /// Returns an error message when failing, or `null` when passing.
@@ -517,6 +611,42 @@ class FieldValidator {
       default:
         return null;
     }
+  }
+
+  Map<String, dynamic>? _constraintsToMap(SDUIConstraints? constraints) {
+    if (constraints == null) return null;
+    return {
+      'min': constraints.min,
+      'max': constraints.max,
+      'min_length': constraints.minLength,
+      'max_length': constraints.maxLength,
+      'max_file_size': constraints.maxFileSize,
+      'max_total_size': constraints.maxTotalSize,
+      'accept': constraints.accept,
+      'regex': constraints.regex,
+      'max_size': constraints.maxSize,
+      'step': constraints.step,
+      'code_type': constraints.codeType,
+      'allowed_domains': constraints.allowedDomains,
+      'disallowed_domains': constraints.disallowedDomains,
+      'allow_countries': constraints.allowedCountries,
+      'exclude_countries': constraints.disallowedCountries,
+      'allow_multiple': constraints.allowMultiple,
+    };
+  }
+
+  Map<String, dynamic>? _optionPropertiesToMap(
+    SDUIOptionProperties? optionProperties,
+  ) {
+    if (optionProperties == null) return null;
+    return {
+      'type': optionProperties.type,
+      'max_select': optionProperties.maxSelect,
+      'data':
+          optionProperties.data
+              .map((option) => {'key': option.key, 'value': option.value})
+              .toList(),
+    };
   }
 
   bool validateEmail(String? textValue) {

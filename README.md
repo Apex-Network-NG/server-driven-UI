@@ -258,6 +258,7 @@ class MyCustomTextField extends SDUIBaseWidget {
 
   @override
   Widget build(BuildContext context) {
+    final error = formManager.getError(field.key);
     return Container(
       decoration: BoxDecoration(
         gradient: LinearGradient(
@@ -265,39 +266,45 @@ class MyCustomTextField extends SDUIBaseWidget {
         ),
         borderRadius: BorderRadius.circular(16),
       ),
-      child: TextField(
-        controller: formManager.getController(field.key),
-        style: TextStyle(fontSize: 18, color: Colors.purple.shade900),
-        decoration: InputDecoration(
-          hintText: field.placeholder ?? field.label,
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(16),
-            borderSide: BorderSide(color: Colors.purple, width: 2),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          TextField(
+            controller: formManager.getController(field.key),
+            style: TextStyle(fontSize: 18, color: Colors.purple.shade900),
+            decoration: InputDecoration(
+              hintText: field.placeholder ?? field.label,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(16),
+                borderSide: BorderSide(color: Colors.purple, width: 2),
+              ),
+              contentPadding: EdgeInsets.all(16),
+            ),
+            onChanged: (value) => onFieldChanged(value),
           ),
-          contentPadding: EdgeInsets.all(16),
-        ),
-        onChanged: (value) {
-          onChanged?.call(field.key, value);
-          validateField(value);
-        },
+          if (error != null) ...[
+            const SizedBox(height: 6),
+            Text(
+              error,
+              style: const TextStyle(fontSize: 12, color: Colors.red),
+            ),
+          ],
+        ],
       ),
     );
   }
-
-  @override
-  String? validateField(value) {
-    formManager.clearError(field.key);
-    
-    if (field.required && (value == null || value.isEmpty)) {
-      final error = '${field.label} is required';
-      formManager.addError(field.key, error);
-      return error;
-    }
-    
-    return null;
-  }
 }
 ```
+
+Calling `onFieldChanged` updates the value and triggers SDK validation. The SDK
+validates:
+- required (from `field.required` or a `required` rule)
+- constraints (`min`, `max`, `regex`, etc.)
+- `validations` rules (email, between, gt, and more)
+- url/phone formats for `url` and `phone` field types
+
+Use `formManager.getError(field.key)` to render the error however you want.
+Override `validateField` only if you need custom behavior.
 
 ## 🔧 Advanced Configuration
 

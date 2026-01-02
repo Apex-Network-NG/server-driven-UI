@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:sdui/src/util/sdui_form.dart';
 import 'package:sdui/src/util/sdui_form_manager.dart';
+import 'package:sdui/src/util/validator.dart';
 
 /// Abstract base class for all SDUI widget components
 /// Provides common functionality for form field widgets
@@ -20,9 +21,20 @@ abstract class SDUIBaseWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context);
 
-  /// Validate the field value - must be implemented by subclasses
-  /// Each widget type handles its own validation logic
-  String? validateField(dynamic value);
+  /// Validate the field value.
+  /// Subclasses can override to customize validation.
+  String? validateField(dynamic value) {
+    formManager.clearError(field.key);
+    final error = FieldValidator.instance.validateField(
+      field: field,
+      formManager: formManager,
+      value: value,
+    );
+    if (error != null) {
+      formManager.addError(field.key, error);
+    }
+    return error;
+  }
 
   /// Handle field value changes - can be overridden by subclasses
   void onFieldChanged(dynamic value) {
@@ -79,7 +91,18 @@ abstract class SDUIBaseStatefulWidget extends StatefulWidget {
 /// Base state class with shared logic
 abstract class SDUIBaseState<T extends SDUIBaseStatefulWidget>
     extends State<T> {
-  String? validateField(dynamic value);
+  String? validateField(dynamic value) {
+    widget.formManager.clearError(widget.field.key);
+    final error = FieldValidator.instance.validateField(
+      field: widget.field,
+      formManager: widget.formManager,
+      value: value,
+    );
+    if (error != null) {
+      widget.formManager.addError(widget.field.key, error);
+    }
+    return error;
+  }
 
   void onFieldChanged(dynamic value) {
     widget.onChanged?.call(widget.field.key, value);
