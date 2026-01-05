@@ -193,6 +193,79 @@ class MyFormPage extends StatelessWidget {
 }
 ```
 
+## ⚡ Autofill (Field API Lookup)
+
+SDUI can call an internal API when a field meets conditions and map response
+data into other fields.
+
+### 1) Register the API config (headers + optional base URL)
+
+```dart
+import 'package:sdui/sdui.dart';
+
+SDUIAutofillApiRegistry.register(
+  SDUIAutofillApiConfig(
+    baseUrl: 'https://internal.api',
+    headers: {
+      'auth': SDUIAutofillApiHeader(
+        name: 'Authorization',
+        resolver: () => 'Bearer $token',
+      ),
+      'ip': SDUIAutofillApiHeader(
+        name: 'X-Client-IP',
+        resolver: () => currentIpAddress,
+      ),
+      'geolocation': SDUIAutofillApiHeader(
+        name: 'X-Geo',
+        value: geoJson,
+      ),
+    },
+  ),
+);
+```
+
+### 2) Add `autofill` to any field in your JSON
+
+```json
+{
+  "id": "019b75d5-210d-72fc-8041-344acc2b415e",
+  "key": "wire_account_number",
+  "label": "Account number",
+  "placeholder": "Enter account number",
+  "type": "short-text",
+  "required": true,
+  "autofill": {
+    "map": [
+      {"path": "data.accountDetails.name", "target": "account_holder_name"},
+      {"path": "data.currency.code", "target": "currency"}
+    ],
+    "when": {
+      "all": [
+        {"key": "wire_account_number", "value": 10, "operator": "length_gte"}
+      ]
+    },
+    "method": "POST",
+    "params": [
+      {"key": "account_number", "value": "{field:wire_account_number}"},
+      {"key": "bank", "value": "{field:bank}"}
+    ],
+    "enabled": true,
+    "headers": ["auth", "ip", "geolocation"],
+    "trigger": "debounce",
+    "endpoint": "/lookup/account",
+    "overwrite": "empty",
+    "debounce_ms": 600
+  }
+}
+```
+
+**Notes**
+- `headers` are not real header values; they reference keys registered in
+  `SDUIAutofillApiConfig`.
+- `params` supports field references with `{field:field_key}`.
+- `trigger` can be `debounce` (automatic) or `manual` (shows an Autofill button).
+- `overwrite` can be `empty` (fill only empty fields) or `always`.
+
 ## 📋 Supported Field Types
 
 | Field Type | Description | Example |

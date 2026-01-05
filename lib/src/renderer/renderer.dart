@@ -1,7 +1,13 @@
+import 'dart:async';
 import 'dart:math' as math;
 
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:sdui/src/config/autofill/autofill_api_config.dart';
+import 'package:sdui/src/core/service/dio_service.dart';
 import 'package:sdui/src/renderer/field_renderer.dart';
+import 'package:sdui/src/util/data_enhance.dart';
+import 'package:sdui/src/util/logger.dart';
 import 'package:sdui/src/util/sdui_form.dart';
 import 'package:sdui/src/util/sdui_form_manager.dart';
 
@@ -40,6 +46,8 @@ class _SDUIRendererState extends State<SDUIRenderer> {
   int _currentPageIndex = 0;
   late final Map<String, SDUIField> _fieldIndex;
   final Map<String, Object?> _resolvedDefaults = {};
+  final Map<String, Timer> _autofillTimers = {};
+  final Map<String, CancelToken> _autofillCancelTokens = {};
 
   String _visKey(String type, String key) {
     // avoid collisions between field keys and section/page keys
@@ -64,7 +72,20 @@ class _SDUIRendererState extends State<SDUIRenderer> {
   @override
   void dispose() {
     _pageController.dispose();
+    _disposeAutofillResources();
     super.dispose();
+  }
+
+  void _disposeAutofillResources() {
+    for (final timer in _autofillTimers.values) {
+      timer.cancel();
+    }
+    _autofillTimers.clear();
+
+    for (final token in _autofillCancelTokens.values) {
+      token.cancel();
+    }
+    _autofillCancelTokens.clear();
   }
 
   void _initializeFormFields() {
@@ -271,7 +292,504 @@ class _SDUIRendererState extends State<SDUIRenderer> {
   void _onFieldChanged(String key, dynamic value) {
     widget.formManager.setFieldValue(key, value);
     _evaluateConditionalsForChangedField(key);
+    _handleAutofillForChangedField(key);
     widget.onFieldChanged?.call(key, value);
+  }
+
+  void _handleAutofillForChangedField(String changedKey) {
+    for (final field in _fieldIndex.values) {
+      final autofill = field.autofill;
+      if (autofill == null || autofill.enabled != true) continue;
+      if (!_isDebounceTrigger(autofill)) continue;
+      if (!_shouldConsiderAutofill(field, autofill, changedKey)) continue;
+      _scheduleAutofill(field, autofill);
+    }
+  }
+
+  bool _shouldConsiderAutofill(
+    SDUIField field,
+    SDUIAutofill autofill,
+    String changedKey,
+  ) {
+    return _autofillDependencyKeys(field, autofill).contains(changedKey);
+  }
+
+  Set<String> _autofillDependencyKeys(
+    SDUIField field,
+    SDUIAutofill autofill,
+  ) {
+    final keys = <String>{};
+    if (field.key.isNotEmpty) {
+      keys.add(field.key);
+    }
+
+    final when = autofill.when;
+    if (when != null) {
+      keys.addAll(
+        when.all.map((c) => c.key).where((key) => key.trim().isNotEmpty),
+      );
+      keys.addAll(
+        when.any.map((c) => c.key).where((key) => key.trim().isNotEmpty),
+      );
+      keys.addAll(
+        when.not.map((c) => c.key).where((key) => key.trim().isNotEmpty),
+      );
+    }
+
+    for (final param in autofill.params) {
+      final raw = param.value;
+      if (raw is String) {
+        keys.addAll(_extractFieldKeysFromTemplate(raw));
+      }
+    }
+
+    return keys;
+  }
+
+  Set<String> _extractFieldKeysFromTemplate(String template) {
+    final matches = RegExp(r'\{field:([^}]+)\}').allMatches(template);
+    return matches
+        .map((match) => match.group(1)?.trim() ?? '')
+        .where((key) => key.isNotEmpty)
+        .toSet();
+  }
+
+  void _scheduleAutofill(SDUIField field, SDUIAutofill autofill) {
+    if (!_autofillConditionsMet(autofill)) {
+      _autofillTimers[field.key]?.cancel();
+      return;
+    }
+
+    final delay = Duration(milliseconds: autofill.debounceMs);
+    _autofillTimers[field.key]?.cancel();
+    _autofillTimers[field.key] = Timer(delay, () {
+      _executeAutofill(field);
+    });
+  }
+
+  bool _isDebounceTrigger(SDUIAutofill autofill) {
+    return autofill.trigger.trim().toLowerCase() == 'debounce';
+  }
+
+  bool _isManualTrigger(SDUIAutofill autofill) {
+    return autofill.trigger.trim().toLowerCase() == 'manual';
+  }
+
+  bool _isManualAutofillEnabled(SDUIField field) {
+    final autofill = field.autofill;
+    if (autofill == null || autofill.enabled != true) return false;
+    if (!_isManualTrigger(autofill)) return false;
+    return _autofillConditionsMet(autofill);
+  }
+
+  void _triggerManualAutofill(SDUIField field) {
+    final autofill = field.autofill;
+    if (autofill == null || autofill.enabled != true) return;
+    if (!_isManualTrigger(autofill)) return;
+    if (!_autofillConditionsMet(autofill)) return;
+
+    _autofillTimers[field.key]?.cancel();
+    _executeAutofill(field);
+  }
+
+  Future<void> _executeAutofill(SDUIField field) async {
+    final autofill = field.autofill;
+    if (autofill == null || autofill.enabled != true) return;
+    if (!_autofillConditionsMet(autofill)) return;
+    if (autofill.endpoint.trim().isEmpty) {
+      Logger.logWarning(
+        'Autofill endpoint missing for field ${field.key}',
+        tag: 'Autofill',
+      );
+      return;
+    }
+
+    final requestKey = 'autofill:${field.key}';
+    _autofillCancelTokens[requestKey]?.cancel();
+    final cancelToken = CancelToken();
+    _autofillCancelTokens[requestKey] = cancelToken;
+
+    try {
+      final responseData = await _performAutofillRequest(
+        autofill,
+        cancelToken,
+      );
+      if (responseData == null) return;
+      _applyAutofillMappings(autofill, responseData);
+    } on DioException catch (e) {
+      if (e.type == DioExceptionType.cancel) return;
+      Logger.logError(
+        'Autofill request failed for ${field.key}: ${e.message}',
+        tag: 'Autofill',
+      );
+    } catch (e) {
+      Logger.logError(
+        'Autofill failed for ${field.key}: $e',
+        tag: 'Autofill',
+      );
+    }
+  }
+
+  Future<dynamic> _performAutofillRequest(
+    SDUIAutofill autofill,
+    CancelToken cancelToken,
+  ) async {
+    final apiConfig = SDUIAutofillApiRegistry.config;
+    final dio = apiConfig.dio ?? DioService().dio;
+    final headers = apiConfig.resolveHeaders(autofill.headers);
+    final params = _resolveAutofillParams(autofill.params);
+    final method = autofill.method.trim().toUpperCase();
+    final endpoint = _resolveAutofillEndpoint(
+      autofill.endpoint,
+      apiConfig.baseUrl ?? dio.options.baseUrl,
+    );
+
+    final options = Options(method: method, headers: headers);
+    final response = await dio.request(
+      endpoint,
+      data: method == 'GET' ? null : params,
+      queryParameters: method == 'GET' ? params : null,
+      options: options,
+      cancelToken: cancelToken,
+    );
+
+    return response.data;
+  }
+
+  Map<String, dynamic> _resolveAutofillParams(
+    List<SDUIAutofillParam> params,
+  ) {
+    if (params.isEmpty) return {};
+    final values = widget.formManager.getAllFormData();
+    final resolved = <String, dynamic>{};
+
+    for (final param in params) {
+      if (param.key.trim().isEmpty) continue;
+      resolved[param.key] = _resolveParamValue(param.value, values);
+    }
+
+    return resolved;
+  }
+
+  dynamic _resolveParamValue(dynamic raw, Map<String, dynamic> values) {
+    if (raw is String) {
+      final trimmed = raw.trim();
+      final exactMatch = RegExp(r'^\{field:([^}]+)\}$').firstMatch(trimmed);
+      if (exactMatch != null) {
+        final key = exactMatch.group(1)?.trim();
+        return key == null ? null : values[key];
+      }
+
+      final matches = RegExp(r'\{field:([^}]+)\}').allMatches(raw);
+      if (matches.isEmpty) return raw;
+
+      var resolved = raw;
+      for (final match in matches) {
+        final key = match.group(1)?.trim();
+        final value = key == null ? null : values[key];
+        resolved = resolved.replaceAll(match.group(0)!, value?.toString() ?? '');
+      }
+      return resolved;
+    }
+
+    return raw;
+  }
+
+  String _resolveAutofillEndpoint(String endpoint, String? baseUrl) {
+    final trimmed = endpoint.trim();
+    if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+      return trimmed;
+    }
+    if (baseUrl == null || baseUrl.trim().isEmpty) return trimmed;
+    return Uri.parse(baseUrl).resolve(trimmed).toString();
+  }
+
+  bool _autofillConditionsMet(SDUIAutofill autofill) {
+    final when = autofill.when;
+    if (when == null) return true;
+
+    final values = widget.formManager.getAllFormData();
+    final allOk = when.all.every((c) => _evaluateAutofillCondition(c, values));
+    final anyOk =
+        when.any.isEmpty ||
+        when.any.any((c) => _evaluateAutofillCondition(c, values));
+    final notOk =
+        when.not.isEmpty
+            ? when.not.every(
+                (c) => !_evaluateAutofillCondition(c, values),
+              )
+            : true;
+
+    return allOk && anyOk && notOk;
+  }
+
+  bool _evaluateAutofillCondition(
+    SDUIAutofillCondition condition,
+    Map<String, dynamic> values,
+  ) {
+    final left = values[condition.key];
+    final right = condition.value;
+    final op = condition.operator.trim().toLowerCase();
+
+    switch (op) {
+      case 'is':
+        return _isEqual(left, right);
+      case 'is_not':
+        return !_isEqual(left, right);
+      case 'length_gt':
+        return _lengthCompare(left, right, (l, r) => l > r);
+      case 'length_gte':
+        return _lengthCompare(left, right, (l, r) => l >= r);
+      case 'length_lt':
+        return _lengthCompare(left, right, (l, r) => l < r);
+      case 'length_lte':
+        return _lengthCompare(left, right, (l, r) => l <= r);
+      case 'length_eq':
+        return _lengthCompare(left, right, (l, r) => l == r);
+      case 'gt':
+        return _numericCompare(left, right, (l, r) => l > r);
+      case 'gte':
+        return _numericCompare(left, right, (l, r) => l >= r);
+      case 'lt':
+        return _numericCompare(left, right, (l, r) => l < r);
+      case 'lte':
+        return _numericCompare(left, right, (l, r) => l <= r);
+      case 'contains':
+        return _containsValue(left, right);
+      case 'starts_with':
+        return _startsWith(left, right);
+      case 'ends_with':
+        return _endsWith(left, right);
+      default:
+        return false;
+    }
+  }
+
+  bool _isEqual(dynamic left, dynamic right) {
+    if (left == null && right == null) return true;
+    if (left == null || right == null) return false;
+
+    final leftNum = _toNum(left);
+    final rightNum = _toNum(right);
+    if (leftNum != null && rightNum != null) {
+      return leftNum == rightNum;
+    }
+
+    return left.toString() == right.toString();
+  }
+
+  bool _lengthCompare(
+    dynamic left,
+    dynamic right,
+    bool Function(int, int) compare,
+  ) {
+    final leftLength = _valueLength(left);
+    final rightNum = _toNum(right)?.toInt();
+    if (leftLength == null || rightNum == null) return false;
+    return compare(leftLength, rightNum);
+  }
+
+  int? _valueLength(dynamic value) {
+    if (value == null) return null;
+    if (value is String) return value.length;
+    if (value is Iterable) return value.length;
+    if (value is Map) return value.length;
+    return value.toString().length;
+  }
+
+  bool _numericCompare(
+    dynamic left,
+    dynamic right,
+    bool Function(num, num) compare,
+  ) {
+    final leftNum = _toNum(left);
+    final rightNum = _toNum(right);
+    if (leftNum == null || rightNum == null) return false;
+    return compare(leftNum, rightNum);
+  }
+
+  num? _toNum(dynamic value) {
+    if (value is num) return value;
+    if (value is String) return num.tryParse(value);
+    return null;
+  }
+
+  bool _containsValue(dynamic left, dynamic right) {
+    if (left == null || right == null) return false;
+    if (left is Iterable) {
+      return left.map((e) => e.toString()).contains(right.toString());
+    }
+    return left.toString().contains(right.toString());
+  }
+
+  bool _startsWith(dynamic left, dynamic right) {
+    if (left == null || right == null) return false;
+    return left.toString().startsWith(right.toString());
+  }
+
+  bool _endsWith(dynamic left, dynamic right) {
+    if (left == null || right == null) return false;
+    return left.toString().endsWith(right.toString());
+  }
+
+  void _applyAutofillMappings(SDUIAutofill autofill, dynamic responseData) {
+    if (autofill.map.isEmpty) return;
+    final overwrite = autofill.overwrite.trim().toLowerCase() == 'always';
+
+    for (final mapping in autofill.map) {
+      if (mapping.target.trim().isEmpty || mapping.path.trim().isEmpty) {
+        continue;
+      }
+      final targetField = _fieldIndex[mapping.target];
+      if (targetField == null) continue;
+
+      final value = dataGet(
+        responseData,
+        mapping.path,
+        defaultValue: null,
+      );
+      if (value == null) continue;
+
+      _applyAutofillToField(targetField, value, overwrite: overwrite);
+      _evaluateConditionalsForChangedField(targetField.key);
+    }
+  }
+
+  void _applyAutofillToField(
+    SDUIField field,
+    Object? value, {
+    required bool overwrite,
+  }) {
+    if (!overwrite && _fieldHasValue(field)) return;
+
+    switch (field.type) {
+      case 'short-text':
+      case 'medium-text':
+      case 'long-text':
+      case 'text':
+      case 'email':
+      case 'url':
+      case 'password':
+      case 'phone':
+        final textValue = value?.toString();
+        if (textValue == null) return;
+        final controller = widget.formManager.getController(field.key);
+        controller.text = textValue;
+        widget.formManager.setFieldValue(field.key, textValue);
+        break;
+
+      case 'number':
+        final textValue = value?.toString();
+        if (textValue == null) return;
+        final controller = widget.formManager.getController(field.key);
+        controller.text = textValue;
+        final parsed = num.tryParse(textValue);
+        widget.formManager.setFieldValue(
+          field.key,
+          parsed ?? value ?? textValue,
+        );
+        break;
+
+      case 'boolean':
+        final boolValue = _toBool(value);
+        if (boolValue == null) return;
+        widget.formManager.setBooleanValue(field.key, boolValue);
+        widget.formManager.setFieldValue(field.key, boolValue);
+        break;
+
+      case 'country':
+        final countryValue = value?.toString();
+        if (countryValue == null || countryValue.isEmpty) return;
+        widget.formManager.updateSelectedCountry(field.key, countryValue);
+        widget.formManager.setFieldValue(field.key, countryValue);
+        break;
+
+      case 'options':
+        final options = _toStringList(value);
+        if (options.isEmpty) return;
+        widget.formManager.setSelectedOption(field.key, options);
+        widget.formManager.setFieldValue(field.key, options);
+        break;
+
+      case 'date':
+      case 'datetime':
+        final dateValue = _toDateTime(value);
+        if (dateValue == null) return;
+        if (field.type == 'datetime') {
+          widget.formManager.setDateTimeValue(field.key, dateValue);
+        } else {
+          widget.formManager.setDateValue(field.key, dateValue);
+        }
+        widget.formManager.setFieldValue(field.key, dateValue);
+        break;
+
+      case 'tag':
+        final tags = _toStringList(value);
+        if (tags.isEmpty) return;
+        widget.formManager.setTagValues(field.key, tags);
+        widget.formManager.setFieldValue(field.key, tags);
+        break;
+
+      case 'file':
+      case 'image':
+      case 'video':
+      case 'document':
+        final fileValue = value?.toString();
+        if (fileValue == null) return;
+        widget.formManager.setFileValue(field.key, fileValue);
+        widget.formManager.setFieldValue(field.key, fileValue);
+        break;
+
+      default:
+        widget.formManager.setFieldValue(field.key, value);
+        break;
+    }
+  }
+
+  bool _fieldHasValue(SDUIField field) {
+    switch (field.type) {
+      case 'short-text':
+      case 'medium-text':
+      case 'long-text':
+      case 'text':
+      case 'email':
+      case 'url':
+      case 'password':
+      case 'phone':
+      case 'number':
+        return widget.formManager
+            .getController(field.key)
+            .text
+            .trim()
+            .isNotEmpty;
+      case 'boolean':
+        return widget.formManager.booleanValues.containsKey(field.key);
+      case 'country':
+        return (widget.formManager.selectedCountries[field.key] ?? '')
+            .trim()
+            .isNotEmpty;
+      case 'options':
+        return widget.formManager.selectedOptions[field.key]?.isNotEmpty == true;
+      case 'date':
+        return widget.formManager.dateValues[field.key] != null;
+      case 'datetime':
+        return widget.formManager.datetimeValues[field.key] != null;
+      case 'tag':
+        return widget.formManager.tagValues[field.key]?.isNotEmpty == true;
+      case 'file':
+      case 'image':
+      case 'video':
+      case 'document':
+        return (widget.formManager.fileValues[field.key] ?? '')
+            .trim()
+            .isNotEmpty;
+      default:
+        final value = widget.formManager.fieldValues[field.key];
+        if (value == null) return false;
+        if (value is String) return value.trim().isNotEmpty;
+        if (value is Iterable) return value.isNotEmpty;
+        return true;
+    }
   }
 
   void _nextPage() {
@@ -484,10 +1002,18 @@ class _SDUIRendererState extends State<SDUIRenderer> {
   }
 
   Widget _buildField(SDUIField field) {
+    final autofill = field.autofill;
+    final isManual =
+        autofill != null &&
+        autofill.enabled == true &&
+        _isManualTrigger(autofill);
+
     return SDUIFieldRenderer(
       field: field,
       formManager: widget.formManager,
       onChanged: _onFieldChanged,
+      onAutofillRequested: isManual ? () => _triggerManualAutofill(field) : null,
+      isAutofillEnabled: isManual ? () => _isManualAutofillEnabled(field) : null,
     );
   }
 }

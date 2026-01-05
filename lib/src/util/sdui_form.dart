@@ -218,6 +218,7 @@ class SDUIField {
   final bool hiddenField;
   final bool required;
   final SDUIFieldUi? ui;
+  final SDUIAutofill? autofill;
   final SDUIConstraints? constraints;
   final List<SDUIValidation>? validations;
   final SDUIOptionProperties? optionProperties;
@@ -236,6 +237,7 @@ class SDUIField {
     required this.hiddenField,
     required this.required,
     this.ui,
+    this.autofill,
     this.constraints,
     this.validations,
     this.optionProperties,
@@ -259,6 +261,9 @@ class SDUIField {
       hiddenField: (json['hidden_field'] ?? json['hidden'] ?? false) as bool,
       required: json['required'] ?? false,
       ui: json['ui'] != null ? SDUIFieldUi.fromJson(json['ui']) : null,
+      autofill: json['autofill'] is Map<String, dynamic>
+          ? SDUIAutofill.fromJson(Map<String, dynamic>.from(json['autofill']))
+          : null,
       constraints: json['constraints'] != null
           ? SDUIConstraints.fromJson(
               Map<String, dynamic>.from(json['constraints']),
@@ -295,6 +300,164 @@ class SDUIVisibleIf {
       all: json['all'] ?? [],
       any: json['any'] ?? [],
       not: json['not'],
+    );
+  }
+}
+
+class SDUIAutofill {
+  final List<SDUIAutofillMap> map;
+  final SDUIAutofillWhen? when;
+  final String method;
+  final List<SDUIAutofillParam> params;
+  final bool enabled;
+  final List<String> headers;
+  final String trigger;
+  final String endpoint;
+  final String overwrite;
+  final int debounceMs;
+
+  SDUIAutofill({
+    required this.map,
+    required this.when,
+    required this.method,
+    required this.params,
+    required this.enabled,
+    required this.headers,
+    required this.trigger,
+    required this.endpoint,
+    required this.overwrite,
+    required this.debounceMs,
+  });
+
+  factory SDUIAutofill.fromJson(Map<String, dynamic> json) {
+    final rawDebounce = json['debounce_ms'];
+    int parsedDebounce = 0;
+    if (rawDebounce is num) {
+      parsedDebounce = rawDebounce.toInt();
+    } else if (rawDebounce is String) {
+      parsedDebounce = int.tryParse(rawDebounce) ?? 0;
+    }
+
+    return SDUIAutofill(
+      map:
+          (json['map'] as List<dynamic>?)
+              ?.whereType<Map>()
+              .map((e) => SDUIAutofillMap.fromJson(Map<String, dynamic>.from(e)))
+              .toList() ??
+          const [],
+      when: json['when'] is Map<String, dynamic>
+          ? SDUIAutofillWhen.fromJson(
+              Map<String, dynamic>.from(json['when']),
+            )
+          : null,
+      method: (json['method'] ?? 'GET').toString(),
+      params:
+          (json['params'] as List<dynamic>?)
+              ?.whereType<Map>()
+              .map(
+                (e) => SDUIAutofillParam.fromJson(
+                  Map<String, dynamic>.from(e),
+                ),
+              )
+              .toList() ??
+          const [],
+      enabled: json['enabled'] ?? true,
+      headers:
+          (json['headers'] as List<dynamic>?)
+              ?.map((e) => e.toString())
+              .toList() ??
+          const [],
+      trigger: (json['trigger'] ?? 'debounce').toString(),
+      endpoint: json['endpoint']?.toString() ?? '',
+      overwrite: (json['overwrite'] ?? 'empty').toString(),
+      debounceMs: parsedDebounce > 0 ? parsedDebounce : 500,
+    );
+  }
+}
+
+class SDUIAutofillMap {
+  final String path;
+  final String target;
+
+  SDUIAutofillMap({required this.path, required this.target});
+
+  factory SDUIAutofillMap.fromJson(Map<String, dynamic> json) {
+    return SDUIAutofillMap(
+      path: json['path']?.toString() ?? '',
+      target: json['target']?.toString() ?? '',
+    );
+  }
+}
+
+class SDUIAutofillParam {
+  final String key;
+  final dynamic value;
+
+  SDUIAutofillParam({required this.key, this.value});
+
+  factory SDUIAutofillParam.fromJson(Map<String, dynamic> json) {
+    return SDUIAutofillParam(
+      key: json['key']?.toString() ?? '',
+      value: json['value'],
+    );
+  }
+}
+
+class SDUIAutofillWhen {
+  final List<SDUIAutofillCondition> all;
+  final List<SDUIAutofillCondition> any;
+  final List<SDUIAutofillCondition> not;
+
+  SDUIAutofillWhen({
+    required this.all,
+    required this.any,
+    required this.not,
+  });
+
+  factory SDUIAutofillWhen.fromJson(Map<String, dynamic> json) {
+    return SDUIAutofillWhen(
+      all: _parseConditions(json['all']),
+      any: _parseConditions(json['any']),
+      not: _parseConditions(json['not']),
+    );
+  }
+
+  static List<SDUIAutofillCondition> _parseConditions(dynamic raw) {
+    if (raw == null) return const [];
+    if (raw is List) {
+      return raw
+          .whereType<Map>()
+          .map(
+            (e) =>
+                SDUIAutofillCondition.fromJson(Map<String, dynamic>.from(e)),
+          )
+          .toList();
+    }
+    if (raw is Map) {
+      return [
+        SDUIAutofillCondition.fromJson(Map<String, dynamic>.from(raw)),
+      ];
+    }
+    return const [];
+  }
+}
+
+class SDUIAutofillCondition {
+  final String key;
+  final String operator;
+  final dynamic value;
+
+  SDUIAutofillCondition({
+    required this.key,
+    required this.operator,
+    required this.value,
+  });
+
+  factory SDUIAutofillCondition.fromJson(Map<String, dynamic> json) {
+    return SDUIAutofillCondition(
+      key: json['key']?.toString() ?? '',
+      operator: json['operator']?.toString() ?? '',
+      value: json['value'],
     );
   }
 }

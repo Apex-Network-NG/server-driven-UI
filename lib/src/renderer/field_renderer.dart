@@ -20,12 +20,16 @@ class SDUIFieldRenderer extends StatefulWidget {
   final SDUIField field;
   final FormManager formManager;
   final Function(String, dynamic)? onChanged;
+  final VoidCallback? onAutofillRequested;
+  final bool Function()? isAutofillEnabled;
 
   const SDUIFieldRenderer({
     super.key,
     required this.field,
     required this.formManager,
     this.onChanged,
+    this.onAutofillRequested,
+    this.isAutofillEnabled,
   });
 
   @override
@@ -47,6 +51,20 @@ class _SDUIFieldRendererState extends State<SDUIFieldRenderer> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               _buildFieldWidget(),
+              if (widget.onAutofillRequested != null) ...[
+                const SizedBox(height: 6),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton(
+                    onPressed: switch (widget.isAutofillEnabled?.call() ??
+                        true) {
+                      true => widget.onAutofillRequested,
+                      _ => null,
+                    },
+                    child: const Text('Autofill'),
+                  ),
+                ),
+              ],
               if (widget.formManager.hasError(widget.field.key) &&
                   allowedTypesGeneralError.contains(widget.field.type)) ...[
                 const SizedBox(height: 4),
@@ -177,9 +195,9 @@ class _SDUIFieldRendererState extends State<SDUIFieldRenderer> {
         );
       case 'rating':
       case 'hidden':
-        return const SizedBox.shrink();
       case 'divider':
       case 'spacing':
+        return const SizedBox.shrink();
 
       // File upload fields
       case 'file':

@@ -20,6 +20,7 @@ export 'src/util/sdui_form_manager.dart';
 export 'src/theme/sdui_theme.dart';
 
 // Config
+export 'src/config/autofill/autofill_api_config.dart';
 export 'src/config/bottomsheet/bottomsheet_service.dart';
 export 'src/config/country/country.dart';
 export 'src/config/country/country_code.dart';
