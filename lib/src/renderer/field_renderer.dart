@@ -22,6 +22,7 @@ class SDUIFieldRenderer extends StatefulWidget {
   final Function(String, dynamic)? onChanged;
   final VoidCallback? onAutofillRequested;
   final bool Function()? isAutofillEnabled;
+  final bool isAutofillLoading;
 
   const SDUIFieldRenderer({
     super.key,
@@ -30,6 +31,7 @@ class SDUIFieldRenderer extends StatefulWidget {
     this.onChanged,
     this.onAutofillRequested,
     this.isAutofillEnabled,
+    this.isAutofillLoading = false,
   });
 
   @override
@@ -42,6 +44,29 @@ class _SDUIFieldRendererState extends State<SDUIFieldRenderer> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final fieldContent = Stack(
+      children: [
+        AbsorbPointer(
+          absorbing: widget.isAutofillLoading,
+          child: _buildFieldWidget(),
+        ),
+        if (widget.isAutofillLoading)
+          Positioned.fill(
+            child: Container(
+              color: theme.colorScheme.surface.withValues(alpha: 0.6),
+              child: const Center(
+                child: SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
+
     return ListenableBuilder(
       listenable: widget.formManager,
       builder: (context, _) {
@@ -50,7 +75,7 @@ class _SDUIFieldRendererState extends State<SDUIFieldRenderer> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _buildFieldWidget(),
+              fieldContent,
               if (widget.onAutofillRequested != null) ...[
                 const SizedBox(height: 6),
                 Align(
@@ -58,7 +83,10 @@ class _SDUIFieldRendererState extends State<SDUIFieldRenderer> {
                   child: TextButton(
                     onPressed: switch (widget.isAutofillEnabled?.call() ??
                         true) {
-                      true => widget.onAutofillRequested,
+                      true =>
+                        widget.isAutofillLoading
+                            ? null
+                            : widget.onAutofillRequested,
                       _ => null,
                     },
                     child: const Text('Autofill'),

@@ -51,6 +51,9 @@ class _SDUIRendererState extends State<SDUIRenderer> {
   final Map<String, Object?> _resolvedDefaults = {};
   final Map<String, Timer> _autofillTimers = {};
   final Map<String, CancelToken> _autofillCancelTokens = {};
+  final Map<String, int> _autofillRequestIds = {};
+  final Set<String> _autofillLoading = {};
+  int _autofillRequestSequence = 0;
 
   String _visKey(String type, String key) {
     // avoid collisions between field keys and section/page keys
@@ -89,6 +92,8 @@ class _SDUIRendererState extends State<SDUIRenderer> {
       token.cancel();
     }
     _autofillCancelTokens.clear();
+    _autofillRequestIds.clear();
+    _autofillLoading.clear();
   }
 
   void _initializeFormFields() {
@@ -393,6 +398,18 @@ class _SDUIRendererState extends State<SDUIRenderer> {
     return _autofillConditionsMet(autofill);
   }
 
+  void _setAutofillLoading(String fieldKey, bool isLoading) {
+    final currentlyLoading = _autofillLoading.contains(fieldKey);
+    if (isLoading == currentlyLoading) return;
+    if (isLoading) {
+      _autofillLoading.add(fieldKey);
+    } else {
+      _autofillLoading.remove(fieldKey);
+    }
+    if (!mounted) return;
+    setState(() {});
+  }
+
   void _triggerManualAutofill(SDUIField field) {
     final autofill = field.autofill;
     if (autofill == null || autofill.enabled != true) return;
@@ -419,6 +436,9 @@ class _SDUIRendererState extends State<SDUIRenderer> {
     _autofillCancelTokens[requestKey]?.cancel();
     final cancelToken = CancelToken();
     _autofillCancelTokens[requestKey] = cancelToken;
+    final requestId = ++_autofillRequestSequence;
+    _autofillRequestIds[field.key] = requestId;
+    _setAutofillLoading(field.key, true);
 
     try {
       final responseData = await _performAutofillRequest(autofill, cancelToken);
@@ -432,6 +452,10 @@ class _SDUIRendererState extends State<SDUIRenderer> {
       );
     } catch (e) {
       Logger.logError('Autofill failed for ${field.key}: $e', tag: 'Autofill');
+    } finally {
+      if (_autofillRequestIds[field.key] == requestId) {
+        _setAutofillLoading(field.key, false);
+      }
     }
   }
 
@@ -1152,6 +1176,7 @@ class _SDUIRendererState extends State<SDUIRenderer> {
         autofill != null &&
         autofill.enabled == true &&
         _isManualTrigger(autofill);
+    final isAutofillLoading = _autofillLoading.contains(field.key);
 
     return SDUIFieldRenderer(
       field: field,
@@ -1163,6 +1188,7 @@ class _SDUIRendererState extends State<SDUIRenderer> {
       isAutofillEnabled: isManual
           ? () => _isManualAutofillEnabled(field)
           : null,
+      isAutofillLoading: isAutofillLoading,
     );
   }
 }

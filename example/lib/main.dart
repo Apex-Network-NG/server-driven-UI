@@ -2466,12 +2466,12 @@ class _MyHomePageState extends State<MyHomePage> {
 
                 const SizedBox(height: 16),
                 ElevatedButton(
-                  onPressed: ibanSepaTransferForm,
+                  onPressed: ukChapsTransferForm,
                   child: const Text('JSON Form'),
                 ),
                 const SizedBox(height: 12),
                 ElevatedButton(
-                  onPressed: urlIbanSepaTransferForm,
+                  onPressed: urlUkChapsTransferForm,
                   child: const Text('URL Form by ID'),
                 ),
               ],

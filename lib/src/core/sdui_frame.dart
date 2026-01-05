@@ -132,7 +132,6 @@ class _SDUIFrameState extends State<SDUIFrame> {
 
   Future<void> _loadFormFromId(String formId) async {
     final jsonString = await provider.fetchFormJsonString(formId);
-    Logger.log("jsonString: $jsonString");
     final formJson = _resolveFormJson(jsonString);
     if (formJson == null) {
       throw Exception(provider.errorMessage ?? 'Invalid form payload');

@@ -1,7 +1,5 @@
 import 'dart:convert';
 
-import 'package:sdui/src/util/logger.dart';
-
 typedef ObjectPropertyGetter = dynamic Function(Object object, String key);
 typedef ObjectPropertySetter =
     bool Function(Object object, String key, dynamic value);
