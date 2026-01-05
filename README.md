@@ -193,6 +193,24 @@ class MyFormPage extends StatelessWidget {
 }
 ```
 
+### Entry Points
+
+SDUIFrame accepts three sources (priority is `formJson` > `formUrl` > `formId`).
+
+```dart
+// 1) Inline JSON
+SDUIFrame(formJson: formJson);
+
+// 2) Form ID (uses the default baseUrl)
+SDUIFrame(formId: 'form-id');
+
+// 3) Hosted schema URL
+SDUIFrame(formUrl: 'https://example.com/forms/form-id.json');
+```
+
+If multiple sources are provided, a runtime warning is logged and the priority
+order is used.
+
 ## ⚡ Autofill (Field API Lookup)
 
 SDUI can call an internal API when a field meets conditions and map response

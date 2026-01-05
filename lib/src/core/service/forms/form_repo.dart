@@ -10,4 +10,11 @@ class FormRepo extends ServiceLocator with ApiRequestMixin {
       call: (cancelToken) async => await formService().getForm(formId: formId),
     );
   }
+
+  Future<ApiResponse> getFormFromUrl(String url) async {
+    return executeRequest(
+      requestKey: 'getFormFromUrl',
+      call: (cancelToken) async => await formService().getFormFromUrl(url: url),
+    );
+  }
 }

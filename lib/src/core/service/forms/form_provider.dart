@@ -5,6 +5,8 @@ import 'package:sdui/src/core/service/dio_service.dart';
 import 'package:sdui/src/core/service/forms/form_repo.dart';
 import 'package:sdui/src/util/mixins/request_mixin.dart';
 
+import '../../../util/logger.dart';
+
 class FormProvider extends ChangeNotifier {
   FormProvider._({FormRepo? repo}) : _repo = repo ?? FormRepo(DioService().dio);
 
@@ -22,11 +24,47 @@ class FormProvider extends ChangeNotifier {
   Map<String, dynamic>? get formJson => _formJson;
 
   Future<String?> fetchFormJsonString(String formId) async {
+    try {
+      _setLoading(true);
+      _errorMessage = null;
+      notifyListeners();
+
+      final ApiResponse response = await _repo.getForm(formId);
+      Logger.log("response: $response");
+      if (response.isSuccess == true && response.data != null) {
+        // final jsonString = _stringifyJson(response.data);
+        // if (jsonString == null) {
+        //   _errorMessage = 'Invalid form payload';
+        //   _setLoading(false);
+        //   notifyListeners();
+        //   return null;
+        // }
+
+        // _formJsonString = jsonString;
+        // _formJson = _decodeJsonMap(response.data, jsonString);
+        // _setLoading(false);
+        // notifyListeners();
+        return _formJsonString;
+      }
+
+      _errorMessage = response.message ?? 'Failed to load form';
+      _setLoading(false);
+      notifyListeners();
+      return null;
+    } catch (e) {
+      _errorMessage = e.toString();
+      _setLoading(false);
+      notifyListeners();
+      return null;
+    }
+  }
+
+  Future<String?> fetchFormJsonStringFromUrl(String url) async {
     _setLoading(true);
     _errorMessage = null;
     notifyListeners();
 
-    final ApiResponse response = await _repo.getForm(formId);
+    final ApiResponse response = await _repo.getFormFromUrl(url);
     if (response.isSuccess == true && response.data != null) {
       final jsonString = _stringifyJson(response.data);
       if (jsonString == null) {

@@ -13,7 +13,26 @@ class FormService {
       Options(method: 'GET', headers: headers, extra: extra)
           .compose(
             dio.options,
-            '/forms/$formId',
+            '/forms/$formId/schema',
+            queryParameters: queryParameters,
+            data: data,
+          )
+          .copyWith(baseUrl: dio.options.baseUrl),
+    );
+    final result = await dio.fetch<Map<String, dynamic>>(options);
+    return result.data;
+  }
+
+  Future<dynamic> getFormFromUrl({required String url}) async {
+    final extra = <String, dynamic>{};
+    final queryParameters = <String, dynamic>{};
+    final headers = <String, dynamic>{};
+    const Map<String, dynamic>? data = null;
+    final options = _setStreamType<dynamic>(
+      Options(method: 'GET', headers: headers, extra: extra)
+          .compose(
+            dio.options,
+            url,
             queryParameters: queryParameters,
             data: data,
           )
