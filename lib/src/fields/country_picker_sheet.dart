@@ -112,7 +112,7 @@ class _CountryPickerSheetState extends State<CountryPickerSheet> {
                     focusNode: _focusNode,
                     onChanged: _onSearchChanged,
                   ),
-                  SizedBox(height: 12),
+                  SizedBox(height: 16),
                   Expanded(
                     child: AnimatedSwitcher(
                       duration: const Duration(milliseconds: 400),
@@ -161,28 +161,33 @@ class _CountryPickerSheetState extends State<CountryPickerSheet> {
                                 isSelected = selectedCountry?.iso3Code == code;
                               }
 
-                              return Padding(
-                                padding: const EdgeInsets.symmetric(
-                                  vertical: 4,
-                                ),
-                                child: Row(
-                                  children: [
-                                    CircleFlag(country.countryCode, size: 24),
-                                    SizedBox(width: 12),
-                                    Expanded(
-                                      child: Text(
-                                        country.name,
-                                        style: theme.textTheme.bodySmall,
+                              return InkWell(
+                                onTap: () {
+                                  Navigator.pop(context, country);
+                                },
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 4,
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      CircleFlag(country.countryCode, size: 24),
+                                      SizedBox(width: 12),
+                                      Expanded(
+                                        child: Text(
+                                          country.name,
+                                          style: theme.textTheme.bodySmall,
+                                        ),
                                       ),
-                                    ),
-                                    SizedBox(width: 12),
-                                    if (isSelected)
-                                      Icon(
-                                        Icons.check_circle_rounded,
-                                        color: theme.colorScheme.primary,
-                                        size: 24,
-                                      ),
-                                  ],
+                                      SizedBox(width: 12),
+                                      if (isSelected)
+                                        Icon(
+                                          Icons.check_circle_rounded,
+                                          color: theme.colorScheme.primary,
+                                          size: 24,
+                                        ),
+                                    ],
+                                  ),
                                 ),
                               );
                             },

@@ -2,17 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:sdui/sdui.dart';
 
 void main() {
-  SDUIWidgetRegistry.instance.register(SDUIFieldType.shortText, ({
-    required field,
-    required formManager,
-    onChanged,
-  }) {
-    return BrandedTextField(
-      field: field,
-      formManager: formManager,
-      onChanged: onChanged,
-    );
-  }, override: true);
+  // SDUIWidgetRegistry.instance.register(SDUIFieldType.shortText, ({
+  //   required field,
+  //   required formManager,
+  //   onChanged,
+  // }) {
+  //   return BrandedTextField(
+  //     field: field,
+  //     formManager: formManager,
+  //     onChanged: onChanged,
+  //   );
+  // }, override: true);
   runApp(const MyApp());
 }
 
@@ -366,39 +366,31 @@ class _MyHomePageState extends State<MyHomePage> {
                               "max_length": null,
                             },
                             "autofill": {
+                              "enabled": true,
+                              "trigger": "debounce",
+                              "debounce_ms": 600,
+                              "method": "GET",
+                              "headers": [],
+                              "params": [],
                               "map": [
                                 {
-                                  "path": "data.accountDetails.name",
-                                  "target": "account_holder_name",
+                                  "path": "title",
+                                  "target": "wire_routing_number",
                                 },
-                                {
-                                  "path": "data.currency.code",
-                                  "target": "currency",
-                                },
+                                {"path": "body", "target": "wire_bank_name"},
                               ],
+                              "overwrite": "always",
                               "when": {
                                 "all": [
                                   {
                                     "key": "wire_account_number",
-                                    "value": 10,
                                     "operator": "length_gte",
+                                    "value": "10",
                                   },
                                 ],
                               },
-                              "method": "POST",
-                              "params": [
-                                {
-                                  "key": "account_number",
-                                  "value": "{field:account_number}",
-                                },
-                                {"key": "bank", "value": "{field:bank}"},
-                              ],
-                              "enabled": true,
-                              "headers": [],
-                              "trigger": "debounce",
-                              "endpoint": "https://google.com",
-                              "overwrite": "empty",
-                              "debounce_ms": 600,
+                              "endpoint":
+                                  "https://jsonplaceholder.typicode.com/posts/1",
                             },
                             "validations": [],
                             "constraints": {
@@ -709,12 +701,6 @@ class _MyHomePageState extends State<MyHomePage> {
                   },
                 ],
                 "meta": {},
-              },
-
-              onSubmit: (formData) {
-                tap();
-                // print('Form submitted with data: $formData');
-                // Handle form submission
               },
               onFieldChanged: (key, value) {
                 print('Field $key changed to: $value');

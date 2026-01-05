@@ -49,6 +49,15 @@ class _SelectorState extends State<Selector> {
       mainAxisAlignment: MainAxisAlignment.start,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        if (widget.header != null) ...[
+          Text(
+            widget.header!,
+            overflow: TextOverflow.ellipsis,
+            maxLines: 1,
+            style: theme.textTheme.bodySmall,
+          ),
+          const SizedBox(height: 6),
+        ],
         InkWell(
           onTap: widget.onTap,
           child: Container(

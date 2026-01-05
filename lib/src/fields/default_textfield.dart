@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:sdui/src/renderer/widget.dart';
 import 'package:sdui/src/theme/sdui_theme.dart';
 import 'package:sdui/src/util/extensions.dart';
+import 'package:sdui/src/util/mask_input_formatter.dart';
 import 'package:sdui/src/util/sdui_form.dart';
 import 'package:sdui/src/util/validator.dart';
 
@@ -25,9 +27,26 @@ class SDUITextField extends SDUIBaseWidget {
     final hintText = field.placeholder ?? label;
     final helpText = field.helpText;
     final defaultValue = field.defaultValue;
+    final ui = field.ui;
+    final uiMaxLength = ui?.maxLength;
+    final uiIcon = ui?.icon?.sduiIconData;
+    final prefixText = ui?.prefix?.trim().isNotEmpty == true
+        ? ui?.prefix
+        : null;
+    final suffixText = ui?.suffix?.trim().isNotEmpty == true
+        ? ui?.suffix
+        : null;
+    final mask = ui?.mask?.trim();
+    final maskFormatter = mask?.isNotEmpty == true
+        ? SDUIMaskTextInputFormatter(mask: mask!, maxLength: uiMaxLength)
+        : null;
+    final keyboardType =
+        ui?.inputMode?.uiTextInputType ?? field.type.textInputType;
+    final autofillHints = ui?.autocomplete?.uiAutofillHints;
 
     if (defaultValue != null && controller.text.isEmpty) {
-      controller.text = defaultValue.toString();
+      final rawValue = defaultValue.toString();
+      controller.text = maskFormatter?.format(rawValue) ?? rawValue;
     }
 
     return Column(
@@ -38,23 +57,35 @@ class SDUITextField extends SDUIBaseWidget {
           controller: controller,
           focusNode: focusNode,
           enabled: !field.readonly,
-          maxLength: field.constraints?.maxLength,
           maxLines: field.ui?.multilineRows,
-          keyboardType: field.type.textInputType,
+          keyboardType: keyboardType,
+          autofillHints: autofillHints,
+          inputFormatters: [
+            if (maskFormatter != null) maskFormatter,
+            if (maskFormatter == null && uiMaxLength != null)
+              LengthLimitingTextInputFormatter(uiMaxLength),
+          ],
           style: theme.textTheme.bodySmall,
           onTapOutside: (event) {
             FocusScope.of(context).unfocus();
           },
           onChanged: (value) {
-            onChanged?.call(field.key, value);
-            validateField(value);
+            final rawValue = maskFormatter?.unmask(value) ?? value;
+            onChanged?.call(field.key, rawValue);
+            validateField(rawValue);
           },
           decoration: baseDecoration.copyWith(
             hintText: hintText,
             errorText: error,
             labelText: label,
             helperText: helpText,
+            labelStyle: theme.textTheme.bodySmall,
+            helperStyle: theme.textTheme.bodySmall,
+            errorStyle: theme.textTheme.bodySmall,
             helperMaxLines: 4,
+            prefixText: prefixText,
+            suffixText: suffixText,
+            prefixIcon: uiIcon != null ? Icon(uiIcon) : null,
           ),
         ),
       ],

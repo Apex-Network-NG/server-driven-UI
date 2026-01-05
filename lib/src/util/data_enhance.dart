@@ -1,7 +1,10 @@
 import 'dart:convert';
 
+import 'package:sdui/src/util/logger.dart';
+
 typedef ObjectPropertyGetter = dynamic Function(Object object, String key);
-typedef ObjectPropertySetter = bool Function(Object object, String key, dynamic value);
+typedef ObjectPropertySetter =
+    bool Function(Object object, String key, dynamic value);
 
 /// Laravel-like data_get for Dart.
 /// Supports:
@@ -38,12 +41,14 @@ dynamic dataGet(
       if (current is Map) {
         final results = <dynamic>[];
         for (final value in current.values) {
-          results.add(dataGet(
-            value,
-            remaining,
-            defaultValue: defaultValue,
-            objectGetter: objectGetter,
-          ));
+          results.add(
+            dataGet(
+              value,
+              remaining,
+              defaultValue: defaultValue,
+              objectGetter: objectGetter,
+            ),
+          );
         }
         // If there’s another '*' deeper, collapse one level (like Arr::collapse-ish).
         return remaining.contains('*') ? _collapse(results) : results;
@@ -52,12 +57,14 @@ dynamic dataGet(
       if (current is Iterable) {
         final results = <dynamic>[];
         for (final item in current) {
-          results.add(dataGet(
-            item,
-            remaining,
-            defaultValue: defaultValue,
-            objectGetter: objectGetter,
-          ));
+          results.add(
+            dataGet(
+              item,
+              remaining,
+              defaultValue: defaultValue,
+              objectGetter: objectGetter,
+            ),
+          );
         }
         return remaining.contains('*') ? _collapse(results) : results;
       }
@@ -281,7 +288,9 @@ dynamic _dataSetInternal(
   }
 
   // If target is primitive/null -> create a container and retry
-  final container = _containerFor(seg.isEmpty ? '' : (rest.isEmpty ? '' : rest.first));
+  final container = _containerFor(
+    seg.isEmpty ? '' : (rest.isEmpty ? '' : rest.first),
+  );
   return _dataSetInternal(
     container,
     segments,

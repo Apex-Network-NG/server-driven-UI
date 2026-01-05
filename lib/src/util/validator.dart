@@ -332,29 +332,30 @@ class FieldValidator {
     final timeValue = value is TimeOfDay ? value : null;
     final dateValue = value is DateTime ? value : _toDateTime(value);
 
-    final resolvedCountryCode =
-        selectedCountryCode?.trim().isNotEmpty == true
-            ? selectedCountryCode
-            : formManager.getSelectedCountry(field.key);
+    final resolvedCountryCode = selectedCountryCode?.trim().isNotEmpty == true
+        ? selectedCountryCode
+        : formManager.getSelectedCountry(field.key)?.countryCode;
 
     if (field.required && !allRules.contains('required')) {
-      final result = validateRequired(
-        validation: SDUIValidation(
-          rule: 'required',
-          message: '${field.label} is required',
-          params: const [],
-        ),
-        formManager: formManager,
-        textValue: textValue,
-        booleanValue: booleanValue,
-        dateValue: dateValue,
-        timeValue: timeValue,
-        rawValue: value,
-        fieldType: field.type,
-        allRules: allRules,
-        selectedCountryCode: resolvedCountryCode,
-      );
-      if (result != null) return result;
+      final result =
+          validateRequired(
+            validation: SDUIValidation(
+              rule: 'required',
+              message: '${field.label} is required',
+              params: const [],
+            ),
+            formManager: formManager,
+            textValue: textValue,
+            booleanValue: booleanValue,
+            dateValue: dateValue,
+            timeValue: timeValue,
+            rawValue: value,
+            fieldType: field.type,
+            allRules: allRules,
+            selectedCountryCode: resolvedCountryCode,
+          ) ??
+          '';
+      if (result.isNotEmpty) return result;
     }
 
     final constraintsError = validateConstraints(
@@ -642,10 +643,9 @@ class FieldValidator {
     return {
       'type': optionProperties.type,
       'max_select': optionProperties.maxSelect,
-      'data':
-          optionProperties.data
-              .map((option) => {'key': option.key, 'value': option.value})
-              .toList(),
+      'data': optionProperties.data
+          .map((option) => {'key': option.key, 'value': option.value})
+          .toList(),
     };
   }
 

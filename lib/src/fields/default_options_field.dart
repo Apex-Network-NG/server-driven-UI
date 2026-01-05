@@ -97,7 +97,6 @@ class _BuildDropSelectionState extends State<_BuildDropSelection> {
                           horizontal: 12,
                           vertical: 4,
                         ),
-
                         child: Center(
                           child: Text(
                             e.value,
@@ -216,7 +215,6 @@ class _BuildRadioOptionsState extends State<_BuildRadioOptions> {
           headerText,
           style: theme.textTheme.bodySmall?.copyWith(
             color: theme.colorScheme.onSurface,
-            fontSize: 14,
           ),
         ),
         const SizedBox(height: 6),
@@ -254,7 +252,6 @@ class _BuildRadioOptionsState extends State<_BuildRadioOptions> {
                     },
                     child: Container(
                       width: itemWidth,
-                      padding: const EdgeInsets.symmetric(vertical: 10),
                       decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(12),
                         border: switch (isSelected) {
@@ -266,12 +263,10 @@ class _BuildRadioOptionsState extends State<_BuildRadioOptions> {
                       child: Row(
                         children: [
                           Radio<String>(value: option.key),
-                          const SizedBox(width: 8),
                           Text(
                             option.value,
                             maxLines: 1,
-                            style: theme.textTheme.bodyMedium?.copyWith(
-                              fontSize: 14,
+                            style: theme.textTheme.bodySmall?.copyWith(
                               color: switch (isSelected) {
                                 true => theme.colorScheme.primary,
                                 _ => theme.colorScheme.onSurface.withValues(

@@ -246,6 +246,9 @@ class SDUIField {
 
   factory SDUIField.fromJson(Map<String, dynamic> json) {
     final conditionals = dataGet(json, 'conditionals', defaultValue: const []);
+    final constraints = dataGet(json, 'constraints', defaultValue: null);
+    final constraintType = constraints.runtimeType;
+
     return SDUIField(
       id: json['id'],
       key: json['key'],
@@ -264,10 +267,8 @@ class SDUIField {
       autofill: json['autofill'] is Map<String, dynamic>
           ? SDUIAutofill.fromJson(Map<String, dynamic>.from(json['autofill']))
           : null,
-      constraints: json['constraints'] != null
-          ? SDUIConstraints.fromJson(
-              Map<String, dynamic>.from(json['constraints']),
-            )
+      constraints: (constraints != null && constraintType != List<dynamic>)
+          ? SDUIConstraints.fromJson(constraints)
           : null,
       validations: json['validations'] != null
           ? (json['validations'] as List<dynamic>)
@@ -342,22 +343,20 @@ class SDUIAutofill {
       map:
           (json['map'] as List<dynamic>?)
               ?.whereType<Map>()
-              .map((e) => SDUIAutofillMap.fromJson(Map<String, dynamic>.from(e)))
+              .map(
+                (e) => SDUIAutofillMap.fromJson(Map<String, dynamic>.from(e)),
+              )
               .toList() ??
           const [],
       when: json['when'] is Map<String, dynamic>
-          ? SDUIAutofillWhen.fromJson(
-              Map<String, dynamic>.from(json['when']),
-            )
+          ? SDUIAutofillWhen.fromJson(Map<String, dynamic>.from(json['when']))
           : null,
       method: (json['method'] ?? 'GET').toString(),
       params:
           (json['params'] as List<dynamic>?)
               ?.whereType<Map>()
               .map(
-                (e) => SDUIAutofillParam.fromJson(
-                  Map<String, dynamic>.from(e),
-                ),
+                (e) => SDUIAutofillParam.fromJson(Map<String, dynamic>.from(e)),
               )
               .toList() ??
           const [],
@@ -408,11 +407,7 @@ class SDUIAutofillWhen {
   final List<SDUIAutofillCondition> any;
   final List<SDUIAutofillCondition> not;
 
-  SDUIAutofillWhen({
-    required this.all,
-    required this.any,
-    required this.not,
-  });
+  SDUIAutofillWhen({required this.all, required this.any, required this.not});
 
   factory SDUIAutofillWhen.fromJson(Map<String, dynamic> json) {
     return SDUIAutofillWhen(
@@ -428,15 +423,12 @@ class SDUIAutofillWhen {
       return raw
           .whereType<Map>()
           .map(
-            (e) =>
-                SDUIAutofillCondition.fromJson(Map<String, dynamic>.from(e)),
+            (e) => SDUIAutofillCondition.fromJson(Map<String, dynamic>.from(e)),
           )
           .toList();
     }
     if (raw is Map) {
-      return [
-        SDUIAutofillCondition.fromJson(Map<String, dynamic>.from(raw)),
-      ];
+      return [SDUIAutofillCondition.fromJson(Map<String, dynamic>.from(raw))];
     }
     return const [];
   }
@@ -467,6 +459,8 @@ class SDUIFieldUi {
   final String? prefix;
   final String? suffix;
   final String? mask;
+  final String? inputMode;
+  final String? autocomplete;
   final int multilineRows;
   final int? maxLength;
 
@@ -475,18 +469,30 @@ class SDUIFieldUi {
     this.prefix,
     this.suffix,
     this.mask,
+    this.inputMode,
+    this.autocomplete,
     required this.multilineRows,
     this.maxLength,
   });
 
   factory SDUIFieldUi.fromJson(Map<String, dynamic> json) {
+    final rawMaxLength = json['max_length'];
+    int? parsedMaxLength;
+    if (rawMaxLength is num) {
+      parsedMaxLength = rawMaxLength.toInt();
+    } else if (rawMaxLength is String) {
+      parsedMaxLength = int.tryParse(rawMaxLength);
+    }
+
     return SDUIFieldUi(
       icon: json['icon'],
       prefix: json['prefix'],
       suffix: json['suffix'],
       mask: json['mask'],
+      inputMode: json['input_mode'],
+      autocomplete: json['autocomplete'],
       multilineRows: json['multiline_rows'] ?? 1,
-      maxLength: json['max_length'],
+      maxLength: parsedMaxLength,
     );
   }
 }
@@ -567,6 +573,11 @@ class SDUIConstraints {
           [],
       allowMultiple: json['allow_multiple'] ?? false,
     );
+  }
+
+  @override
+  String toString() {
+    return 'SDUIConstraints(min: $min, max: $max, minLength: $minLength, maxLength: $maxLength, maxFileSize: $maxFileSize, maxTotalSize: $maxTotalSize, accept: $accept, regex: $regex, maxSize: $maxSize, step: $step, codeType: $codeType, allowedDomains: $allowedDomains, disallowedDomains: $disallowedDomains, allowedCountries: $allowedCountries, disallowedCountries: $disallowedCountries, allowMultiple: $allowMultiple)';
   }
 }
 

@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:sdui/src/renderer/widget.dart';
 import 'package:sdui/src/theme/sdui_theme.dart';
 import 'package:sdui/src/util/extensions.dart';
+import 'package:sdui/src/util/mask_input_formatter.dart';
 import 'package:sdui/src/util/sdui_form.dart';
 import 'package:sdui/src/util/validator.dart';
 
@@ -35,9 +36,18 @@ class _SDUINumberFieldState extends SDUIBaseState<SDUINumberField> {
     final controller = widget.formManager.getController(widget.field.key);
     if (controller.text.isNotEmpty) return;
 
-    final value = defaultValue.toString();
-    controller.text = value;
-    _syncValue(value);
+    final ui = widget.field.ui;
+    final mask = ui?.mask?.trim();
+    final maskFormatter =
+        mask?.isNotEmpty == true
+            ? SDUIMaskTextInputFormatter(
+              mask: mask!,
+              maxLength: ui?.maxLength,
+            )
+            : null;
+    final rawValue = defaultValue.toString();
+    controller.text = maskFormatter?.format(rawValue) ?? rawValue;
+    _syncValue(rawValue);
   }
 
   void _syncValue(String value) {
@@ -61,6 +71,35 @@ class _SDUINumberFieldState extends SDUIBaseState<SDUINumberField> {
     final hintText = widget.field.placeholder ?? label;
     final helpText = widget.field.helpText;
     final regex = widget.field.constraints?.regex;
+    final ui = widget.field.ui;
+    final uiMaxLength = ui?.maxLength;
+    final uiIcon = ui?.icon?.sduiIconData;
+    final prefixText =
+        ui?.prefix?.trim().isNotEmpty == true ? ui?.prefix : null;
+    final suffixText =
+        ui?.suffix?.trim().isNotEmpty == true ? ui?.suffix : null;
+    final inputMode = ui?.inputMode?.trim().toLowerCase();
+    final mask = ui?.mask?.trim();
+    final maskFormatter =
+        mask?.isNotEmpty == true
+            ? SDUIMaskTextInputFormatter(mask: mask!, maxLength: uiMaxLength)
+            : null;
+    final keyboardType =
+        ui?.inputMode?.uiTextInputType ?? widget.field.type.textInputType;
+    final autofillHints = ui?.autocomplete?.uiAutofillHints;
+    final allowDecimal = inputMode == 'decimal';
+    final inputFormatters = <TextInputFormatter>[
+      if (maskFormatter != null)
+        maskFormatter
+      else ...[
+        if (allowDecimal)
+          FilteringTextInputFormatter.allow(RegExp(r'[0-9.]'))
+        else
+          FilteringTextInputFormatter.digitsOnly,
+        if (regex != null) FilteringTextInputFormatter.allow(RegExp(regex)),
+        if (uiMaxLength != null) LengthLimitingTextInputFormatter(uiMaxLength),
+      ],
+    ];
 
     return Column(
       mainAxisAlignment: MainAxisAlignment.start,
@@ -70,27 +109,28 @@ class _SDUINumberFieldState extends SDUIBaseState<SDUINumberField> {
           controller: controller,
           focusNode: focusNode,
           enabled: !widget.field.readonly,
-          maxLength: widget.field.constraints?.maxLength,
           maxLines: widget.field.ui?.multilineRows,
-          keyboardType: widget.field.type.textInputType,
+          keyboardType: keyboardType,
+          autofillHints: autofillHints,
           style: theme.textTheme.bodySmall,
           onTapOutside: (event) {
             FocusScope.of(context).unfocus();
           },
-          inputFormatters: [
-            FilteringTextInputFormatter.digitsOnly,
-            if (regex != null) FilteringTextInputFormatter.allow(RegExp(regex)),
-          ],
+          inputFormatters: inputFormatters,
           onChanged: (value) {
-            widget.onChanged?.call(widget.field.key, value);
-            _syncValue(value);
-            validateField(value);
+            final rawValue = maskFormatter?.unmask(value) ?? value;
+            widget.onChanged?.call(widget.field.key, rawValue);
+            _syncValue(rawValue);
+            validateField(rawValue);
           },
           decoration: baseDecoration.copyWith(
             hintText: hintText,
             errorText: error,
             labelText: label,
             helperText: helpText,
+            prefixText: prefixText,
+            suffixText: suffixText,
+            prefixIcon: uiIcon != null ? Icon(uiIcon) : null,
           ),
         ),
       ],

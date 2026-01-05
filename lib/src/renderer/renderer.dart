@@ -1,13 +1,16 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:math' as math;
 
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:sdui/src/config/autofill/autofill_api_config.dart';
+import 'package:sdui/src/config/country/country_form.dart';
 import 'package:sdui/src/core/service/dio_service.dart';
 import 'package:sdui/src/renderer/field_renderer.dart';
 import 'package:sdui/src/util/data_enhance.dart';
 import 'package:sdui/src/util/logger.dart';
+import 'package:sdui/src/util/mask_input_formatter.dart';
 import 'package:sdui/src/util/sdui_form.dart';
 import 'package:sdui/src/util/sdui_form_manager.dart';
 
@@ -179,13 +182,13 @@ class _SDUIRendererState extends State<SDUIRenderer> {
       case 'email':
       case 'url':
       case 'password':
-        _setControllerValue(field.key, value?.toString());
+        _setControllerValue(field.key, value?.toString(), mask: field.ui?.mask);
         widget.formManager.setFieldValue(field.key, value?.toString());
         break;
 
       case 'number':
         final textValue = value?.toString();
-        _setControllerValue(field.key, textValue);
+        _setControllerValue(field.key, textValue, mask: field.ui?.mask);
         final parsed = textValue == null ? null : num.tryParse(textValue);
         widget.formManager.setFieldValue(
           field.key,
@@ -194,7 +197,7 @@ class _SDUIRendererState extends State<SDUIRenderer> {
         break;
 
       case 'phone':
-        _setControllerValue(field.key, value?.toString());
+        _setControllerValue(field.key, value?.toString(), mask: field.ui?.mask);
         widget.formManager.setFieldValue(field.key, value?.toString());
         break;
 
@@ -208,7 +211,10 @@ class _SDUIRendererState extends State<SDUIRenderer> {
       case 'country':
         final countryValue = value?.toString();
         if (countryValue != null && countryValue.isNotEmpty) {
-          widget.formManager.updateSelectedCountry(field.key, countryValue);
+          widget.formManager.updateSelectedCountry(
+            field.key,
+            CountryForm(countryCode: countryValue, countryName: countryValue),
+          );
           widget.formManager.setFieldValue(field.key, countryValue);
         }
         break;
@@ -237,10 +243,18 @@ class _SDUIRendererState extends State<SDUIRenderer> {
     }
   }
 
-  void _setControllerValue(String key, String? value) {
+  void _setControllerValue(String key, String? value, {String? mask}) {
     if (value == null) return;
     final controller = widget.formManager.getController(key);
-    if (controller.text.isEmpty) controller.text = value;
+    if (controller.text.isNotEmpty) return;
+    controller.text = _formatMaskedValue(value, mask);
+  }
+
+  String _formatMaskedValue(String value, String? mask) {
+    final trimmedMask = mask?.trim();
+    if (trimmedMask == null || trimmedMask.isEmpty) return value;
+    final formatter = SDUIMaskTextInputFormatter(mask: trimmedMask);
+    return formatter.format(value);
   }
 
   bool? _toBool(Object? value) {
@@ -314,10 +328,7 @@ class _SDUIRendererState extends State<SDUIRenderer> {
     return _autofillDependencyKeys(field, autofill).contains(changedKey);
   }
 
-  Set<String> _autofillDependencyKeys(
-    SDUIField field,
-    SDUIAutofill autofill,
-  ) {
+  Set<String> _autofillDependencyKeys(SDUIField field, SDUIAutofill autofill) {
     final keys = <String>{};
     if (field.key.isNotEmpty) {
       keys.add(field.key);
@@ -410,10 +421,7 @@ class _SDUIRendererState extends State<SDUIRenderer> {
     _autofillCancelTokens[requestKey] = cancelToken;
 
     try {
-      final responseData = await _performAutofillRequest(
-        autofill,
-        cancelToken,
-      );
+      final responseData = await _performAutofillRequest(autofill, cancelToken);
       if (responseData == null) return;
       _applyAutofillMappings(autofill, responseData);
     } on DioException catch (e) {
@@ -423,10 +431,7 @@ class _SDUIRendererState extends State<SDUIRenderer> {
         tag: 'Autofill',
       );
     } catch (e) {
-      Logger.logError(
-        'Autofill failed for ${field.key}: $e',
-        tag: 'Autofill',
-      );
+      Logger.logError('Autofill failed for ${field.key}: $e', tag: 'Autofill');
     }
   }
 
@@ -456,9 +461,7 @@ class _SDUIRendererState extends State<SDUIRenderer> {
     return response.data;
   }
 
-  Map<String, dynamic> _resolveAutofillParams(
-    List<SDUIAutofillParam> params,
-  ) {
+  Map<String, dynamic> _resolveAutofillParams(List<SDUIAutofillParam> params) {
     if (params.isEmpty) return {};
     final values = widget.formManager.getAllFormData();
     final resolved = <String, dynamic>{};
@@ -487,7 +490,10 @@ class _SDUIRendererState extends State<SDUIRenderer> {
       for (final match in matches) {
         final key = match.group(1)?.trim();
         final value = key == null ? null : values[key];
-        resolved = resolved.replaceAll(match.group(0)!, value?.toString() ?? '');
+        resolved = resolved.replaceAll(
+          match.group(0)!,
+          value?.toString() ?? '',
+        );
       }
       return resolved;
     }
@@ -513,12 +519,9 @@ class _SDUIRendererState extends State<SDUIRenderer> {
     final anyOk =
         when.any.isEmpty ||
         when.any.any((c) => _evaluateAutofillCondition(c, values));
-    final notOk =
-        when.not.isEmpty
-            ? when.not.every(
-                (c) => !_evaluateAutofillCondition(c, values),
-              )
-            : true;
+    final notOk = when.not.isEmpty
+        ? when.not.every((c) => !_evaluateAutofillCondition(c, values))
+        : true;
 
     return allOk && anyOk && notOk;
   }
@@ -644,7 +647,7 @@ class _SDUIRendererState extends State<SDUIRenderer> {
       if (targetField == null) continue;
 
       final value = dataGet(
-        responseData,
+        jsonEncode(responseData),
         mapping.path,
         defaultValue: null,
       );
@@ -674,7 +677,7 @@ class _SDUIRendererState extends State<SDUIRenderer> {
         final textValue = value?.toString();
         if (textValue == null) return;
         final controller = widget.formManager.getController(field.key);
-        controller.text = textValue;
+        controller.text = _formatMaskedValue(textValue, field.ui?.mask);
         widget.formManager.setFieldValue(field.key, textValue);
         break;
 
@@ -682,7 +685,7 @@ class _SDUIRendererState extends State<SDUIRenderer> {
         final textValue = value?.toString();
         if (textValue == null) return;
         final controller = widget.formManager.getController(field.key);
-        controller.text = textValue;
+        controller.text = _formatMaskedValue(textValue, field.ui?.mask);
         final parsed = num.tryParse(textValue);
         widget.formManager.setFieldValue(
           field.key,
@@ -700,7 +703,10 @@ class _SDUIRendererState extends State<SDUIRenderer> {
       case 'country':
         final countryValue = value?.toString();
         if (countryValue == null || countryValue.isEmpty) return;
-        widget.formManager.updateSelectedCountry(field.key, countryValue);
+        widget.formManager.updateSelectedCountry(
+          field.key,
+          CountryForm(countryCode: countryValue, countryName: countryValue),
+        );
         widget.formManager.setFieldValue(field.key, countryValue);
         break;
 
@@ -765,11 +771,14 @@ class _SDUIRendererState extends State<SDUIRenderer> {
       case 'boolean':
         return widget.formManager.booleanValues.containsKey(field.key);
       case 'country':
-        return (widget.formManager.selectedCountries[field.key] ?? '')
+        return ((widget.formManager.selectedCountries[field.key])
+                    ?.countryCode ??
+                "")
             .trim()
             .isNotEmpty;
       case 'options':
-        return widget.formManager.selectedOptions[field.key]?.isNotEmpty == true;
+        return widget.formManager.selectedOptions[field.key]?.isNotEmpty ==
+            true;
       case 'date':
         return widget.formManager.dateValues[field.key] != null;
       case 'datetime':
@@ -793,12 +802,148 @@ class _SDUIRendererState extends State<SDUIRenderer> {
   }
 
   void _nextPage() {
+    if (!_validateRequiredFieldsForCurrentPage()) return;
     if (_currentPageIndex < widget.form.form.pages.length - 1) {
       _pageController.nextPage(
         duration: const Duration(milliseconds: 300),
         curve: Curves.easeInOut,
       );
     }
+  }
+
+  bool _validateRequiredFieldsForCurrentPage() {
+    final pages = _visiblePages;
+    if (_currentPageIndex < 0 || _currentPageIndex >= pages.length) {
+      return true;
+    }
+    return _validateRequiredFieldsForPage(pages[_currentPageIndex]);
+  }
+
+  bool _validateRequiredFieldsForForm() {
+    var isValid = true;
+    for (final page in _visiblePages) {
+      if (!_validateRequiredFieldsForPage(page)) {
+        isValid = false;
+      }
+    }
+    return isValid;
+  }
+
+  bool _validateRequiredFieldsForPage(SDUIPage page) {
+    var isValid = true;
+
+    for (final section in page.sections) {
+      final sectionHidden = widget.formManager.isHidden(
+        _visKey('section', section.key),
+        fallback: section.hidden,
+      );
+      if (sectionHidden) continue;
+
+      for (final field in section.fields) {
+        if (!_isFieldRequired(field)) continue;
+        if (_isFieldHidden(field)) continue;
+        if (_fieldHasRequiredValue(field)) continue;
+
+        widget.formManager.addError(field.key, _requiredErrorMessage(field));
+        isValid = false;
+      }
+    }
+
+    return isValid;
+  }
+
+  bool _isFieldHidden(SDUIField field) {
+    if (const {'hidden', 'divider', 'spacing'}.contains(field.type)) {
+      return true;
+    }
+    return widget.formManager.isHidden(field.key, fallback: field.hiddenField);
+  }
+
+  bool _isFieldRequired(SDUIField field) {
+    if (field.required) return true;
+    return field.validations?.any(
+          (validation) => validation.rule.toLowerCase() == 'required',
+        ) ==
+        true;
+  }
+
+  String _requiredErrorMessage(SDUIField field) {
+    final message = field.validations
+        ?.firstWhere(
+          (validation) => validation.rule.toLowerCase() == 'required',
+          orElse: () => SDUIValidation(rule: '', params: const []),
+        )
+        .message;
+
+    if (message != null && message.trim().isNotEmpty) return message;
+    if (field.type == 'boolean') {
+      return 'You must accept ${field.label.toLowerCase()}';
+    }
+    return '${field.label} is required';
+  }
+
+  bool _fieldHasRequiredValue(SDUIField field) {
+    switch (field.type) {
+      case 'short-text':
+      case 'medium-text':
+      case 'long-text':
+      case 'text':
+      case 'email':
+      case 'url':
+      case 'password':
+      case 'number':
+      case 'phone':
+        return _getTextFieldValue(field).trim().isNotEmpty;
+
+      case 'boolean':
+        return widget.formManager.getBooleanValue(field.key) == true;
+
+      case 'options':
+        return widget.formManager.getSelectedOption(field.key)?.isNotEmpty ==
+            true;
+
+      case 'country':
+        return ((widget.formManager.getSelectedCountry(
+                      field.key,
+                    ))?.countryCode ??
+                    '')
+                .trim()
+                .isNotEmpty ==
+            true;
+
+      case 'date':
+        return widget.formManager.getDateValue(field.key) != null;
+
+      case 'datetime':
+        return widget.formManager.getDateTimeValue(field.key) != null;
+
+      case 'tag':
+        return widget.formManager.getTagValues(field.key).isNotEmpty;
+
+      case 'file':
+      case 'image':
+      case 'video':
+      case 'document':
+        return (widget.formManager.getFileValue(field.key) ?? '')
+            .trim()
+            .isNotEmpty;
+
+      default:
+        final value = widget.formManager.getFieldValue(field.key);
+        if (value == null) return false;
+        if (value is String) return value.trim().isNotEmpty;
+        if (value is Iterable) return value.isNotEmpty;
+        return true;
+    }
+  }
+
+  String _getTextFieldValue(SDUIField field) {
+    final controller = widget.formManager.getController(field.key);
+    final value = controller.text;
+    final mask = field.ui?.mask;
+    if (mask == null || mask.trim().isEmpty) return value;
+    final formatter = SDUIMaskTextInputFormatter(mask: mask.trim());
+    return formatter.unmask(value);
   }
 
   void _evaluateConditionalsForChangedField(String changedKey) {
@@ -871,6 +1016,7 @@ class _SDUIRendererState extends State<SDUIRenderer> {
   }
 
   void _submitForm() {
+    if (!_validateRequiredFieldsForForm()) return;
     final formData = widget.formManager.getAllFormData();
     widget.onSubmit?.call(formData);
   }
@@ -899,13 +1045,19 @@ class _SDUIRendererState extends State<SDUIRenderer> {
     return Column(
       children: [
         Expanded(
-          child: PageView.builder(
-            controller: _pageController,
-            onPageChanged: (index) => setState(() => _currentPageIndex = index),
-            itemCount: pages.length,
-            itemBuilder: (context, pageIndex) {
-              final page = pages[pageIndex];
-              return _buildPage(page);
+          child: ListenableBuilder(
+            listenable: Listenable.merge([_pageController, widget.formManager]),
+            builder: (context, _) {
+              return PageView.builder(
+                controller: _pageController,
+                onPageChanged: (index) =>
+                    setState(() => _currentPageIndex = index),
+                itemCount: pages.length,
+                itemBuilder: (context, pageIndex) {
+                  final page = pages[pageIndex];
+                  return _buildPage(page);
+                },
+              );
             },
           ),
         ),
@@ -986,14 +1138,7 @@ class _SDUIRendererState extends State<SDUIRenderer> {
       mainAxisAlignment: MainAxisAlignment.start,
       children: [
         if (section.label != null) ...[
-          Text(
-            section.label!,
-            style: theme.textTheme.titleMedium?.copyWith(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          const SizedBox(height: 16),
+          Text(section.label!, style: theme.textTheme.titleMedium),
         ],
         ...section.fields.map((field) => _buildField(field)),
         const SizedBox(height: 24),
@@ -1012,8 +1157,12 @@ class _SDUIRendererState extends State<SDUIRenderer> {
       field: field,
       formManager: widget.formManager,
       onChanged: _onFieldChanged,
-      onAutofillRequested: isManual ? () => _triggerManualAutofill(field) : null,
-      isAutofillEnabled: isManual ? () => _isManualAutofillEnabled(field) : null,
+      onAutofillRequested: isManual
+          ? () => _triggerManualAutofill(field)
+          : null,
+      isAutofillEnabled: isManual
+          ? () => _isManualAutofillEnabled(field)
+          : null,
     );
   }
 }

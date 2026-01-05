@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:sdui/src/config/country/country_form.dart';
 
 /// FormManager class for managing form state and validation
 /// Handles different value types: String, List\<String>, DateTime, etc.
@@ -6,7 +7,7 @@ class FormManager extends ChangeNotifier {
   final Map<String, TextEditingController> controllers = {};
   final Map<String, FocusNode> focusNodes = {};
   final Map<String, String?> errorMessages = {};
-  final Map<String, String?> selectedCountries = {};
+  final Map<String, CountryForm?> selectedCountries = {};
   final Map<String, dynamic> fieldValues = {};
   final Map<String, bool> booleanValues = {};
   final Map<String, List<String>> selectedOptions = {};
@@ -24,7 +25,7 @@ class FormManager extends ChangeNotifier {
   /// Parameters:
   /// - [key]: The unique identifier for the form field
   /// - [country]: The country string to store for this field
-  void updateSelectedCountry(String key, String? country) {
+  void updateSelectedCountry(String key, CountryForm? country) {
     selectedCountries[key] = country;
     notifyListeners();
   }
@@ -274,8 +275,8 @@ class FormManager extends ChangeNotifier {
   /// - [key]: The unique identifier for the form field
   ///
   /// Returns:
-  /// - [String?]: The selected country string, or null if not set
-  String? getSelectedCountry(String key) {
+  /// - [CountryForm?]: The selected country, or null if not set
+  CountryForm? getSelectedCountry(String key) {
     return selectedCountries[key];
   }
 

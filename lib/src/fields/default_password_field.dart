@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:sdui/src/renderer/widget.dart';
 import 'package:sdui/src/theme/sdui_theme.dart';
 import 'package:sdui/src/util/extensions.dart';
+import 'package:sdui/src/util/mask_input_formatter.dart';
 import 'package:sdui/src/util/sdui_form.dart';
 import 'package:sdui/src/util/validator.dart';
 
@@ -28,7 +30,17 @@ class _SDUIPasswordFieldState extends SDUIBaseState<SDUIPasswordField> {
 
       final controller = widget.formManager.getController(widget.field.key);
       if (controller.text.isEmpty) {
-        controller.text = defaultValue.toString();
+        final ui = widget.field.ui;
+        final mask = ui?.mask?.trim();
+        final maskFormatter =
+            mask?.isNotEmpty == true
+                ? SDUIMaskTextInputFormatter(
+                  mask: mask!,
+                  maxLength: ui?.maxLength,
+                )
+                : null;
+        final rawValue = defaultValue.toString();
+        controller.text = maskFormatter?.format(rawValue) ?? rawValue;
       }
     });
   }
@@ -96,6 +108,26 @@ class _SDUIPasswordFieldState extends SDUIBaseState<SDUIPasswordField> {
     final label = widget.field.label;
     final hintText = widget.field.placeholder ?? label;
     final helpText = widget.field.helpText;
+    final ui = widget.field.ui;
+    final uiMaxLength = ui?.maxLength;
+    final uiIcon = ui?.icon?.sduiIconData;
+    final prefixText =
+        ui?.prefix?.trim().isNotEmpty == true ? ui?.prefix : null;
+    final suffixText =
+        ui?.suffix?.trim().isNotEmpty == true ? ui?.suffix : null;
+    final mask = ui?.mask?.trim();
+    final maskFormatter =
+        mask?.isNotEmpty == true
+            ? SDUIMaskTextInputFormatter(mask: mask!, maxLength: uiMaxLength)
+            : null;
+    final keyboardType =
+        ui?.inputMode?.uiTextInputType ?? widget.field.type.textInputType;
+    final autofillHints = ui?.autocomplete?.uiAutofillHints;
+    final inputFormatters = <TextInputFormatter>[
+      if (maskFormatter != null) maskFormatter,
+      if (maskFormatter == null && uiMaxLength != null)
+        LengthLimitingTextInputFormatter(uiMaxLength),
+    ];
 
     return Column(
       mainAxisAlignment: MainAxisAlignment.start,
@@ -105,23 +137,28 @@ class _SDUIPasswordFieldState extends SDUIBaseState<SDUIPasswordField> {
           controller: controller,
           focusNode: focusNode,
           enabled: !widget.field.readonly,
-          maxLength: widget.field.constraints?.maxLength,
           maxLines: widget.field.ui?.multilineRows,
-          keyboardType: widget.field.type.textInputType,
+          keyboardType: keyboardType,
+          autofillHints: autofillHints,
           obscureText: _obscurePassword,
+          inputFormatters: inputFormatters,
           style: theme.textTheme.bodySmall,
           onTapOutside: (event) {
             FocusScope.of(context).unfocus();
           },
           onChanged: (value) {
-            widget.onChanged?.call(widget.field.key, value);
-            validateField(value);
+            final rawValue = maskFormatter?.unmask(value) ?? value;
+            widget.onChanged?.call(widget.field.key, rawValue);
+            validateField(rawValue);
           },
           decoration: baseDecoration.copyWith(
             hintText: hintText,
             errorText: error,
             labelText: label,
             helperText: helpText,
+            prefixText: prefixText,
+            suffixText: suffixText,
+            prefixIcon: uiIcon != null ? Icon(uiIcon) : null,
             suffixIcon: Padding(
               padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
               child: InkWell(
