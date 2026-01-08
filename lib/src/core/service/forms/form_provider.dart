@@ -44,7 +44,7 @@ class FormProvider extends ChangeNotifier {
         return _formJsonString;
       }
 
-      _errorMessage = response.message ?? 'Failed to load form';
+      _errorMessage = response.data ?? 'Failed to load form';
       _setLoading(false);
       notifyListeners();
       return null;

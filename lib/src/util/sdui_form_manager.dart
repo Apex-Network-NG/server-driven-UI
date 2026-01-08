@@ -425,6 +425,11 @@ class FormManager extends ChangeNotifier {
     formData.addAll(tagValues);
     formData.addAll(fileValues);
 
+    selectedCountries.forEach((key, country) {
+      if (country != null) {
+        formData[key] = country.countryCode;
+      }
+    });
     return formData;
   }
 

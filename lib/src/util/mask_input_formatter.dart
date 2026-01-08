@@ -63,14 +63,16 @@ class SDUIMaskTextInputFormatter extends TextInputFormatter {
     var valueIndex = 0;
 
     for (final maskChar in _maskChars) {
-      final rule = _rules[maskChar];
+      final ruleKey = maskChar.toUpperCase();
+      final rule = _rules[ruleKey];
       if (rule == null) continue;
 
       while (valueIndex < value.length) {
         final char = value[valueIndex];
         valueIndex += 1;
         if (rule.hasMatch(char)) {
-          buffer.write(char);
+          final convertedChar = _convertCase(char, maskChar);
+          buffer.write(convertedChar);
           break;
         }
       }
@@ -89,10 +91,13 @@ class SDUIMaskTextInputFormatter extends TextInputFormatter {
     var rawIndex = 0;
 
     for (final maskChar in _maskChars) {
-      final rule = _rules[maskChar];
+      final ruleKey = maskChar.toUpperCase();
+      final rule = _rules[ruleKey];
       if (rule != null) {
         if (rawIndex >= raw.length) break;
-        buffer.write(raw[rawIndex]);
+        final char = raw[rawIndex];
+        final convertedChar = _convertCase(char, maskChar);
+        buffer.write(convertedChar);
         rawIndex += 1;
       } else {
         if (rawIndex >= raw.length) break;
@@ -101,6 +106,27 @@ class SDUIMaskTextInputFormatter extends TextInputFormatter {
     }
 
     return buffer.toString();
+  }
+
+  String _convertCase(String char, String maskChar) {
+    // Only convert alphabetic characters
+    if (!RegExp(r'[A-Za-z]').hasMatch(char)) {
+      return char;
+    }
+
+    // Check if mask character is uppercase or lowercase
+    if (maskChar == maskChar.toUpperCase() &&
+        maskChar != maskChar.toLowerCase()) {
+      // Mask character is uppercase (like 'A')
+      return char.toUpperCase();
+    } else if (maskChar == maskChar.toLowerCase() &&
+        maskChar != maskChar.toUpperCase()) {
+      // Mask character is lowercase (like 'a')
+      return char.toLowerCase();
+    }
+
+    // Mask character is not alphabetic, return as-is
+    return char;
   }
 
   String _applyMaxLength(String raw) {
