@@ -54,12 +54,12 @@ class _SDUIFieldRendererState extends State<SDUIFieldRenderer> {
         if (widget.isAutofillLoading)
           Positioned.fill(
             child: Container(
-              color: theme.colorScheme.surface.withValues(alpha: 0.6),
+              color: theme.colorScheme.surface.withValues(alpha: 0.8),
               child: const Center(
                 child: SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(strokeWidth: 2),
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(strokeWidth: 3),
                 ),
               ),
             ),

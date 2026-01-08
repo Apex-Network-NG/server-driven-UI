@@ -123,6 +123,7 @@ class _SDUIRendererState extends State<SDUIRenderer> {
 
     for (final key in _fieldIndex.keys) {
       _evaluateConditionalsForChangedField(key);
+      _handleAutofillForBlur(key);
     }
   }
 
@@ -315,10 +316,20 @@ class _SDUIRendererState extends State<SDUIRenderer> {
     widget.onFieldChanged?.call(key, value);
   }
 
+  void _handleAutofillForBlur(String changedKey) {
+    final field = _fieldIndex[changedKey];
+    if (field == null) return;
+    final autofill = field.autofill;
+    if (autofill == null || autofill.enabled != true) return;
+    if (!_isBlurTrigger(autofill)) return;
+    _executeAutofill(field);
+  }
+
   void _handleAutofillForChangedField(String changedKey) {
     for (final field in _fieldIndex.values) {
       final autofill = field.autofill;
       if (autofill == null || autofill.enabled != true) continue;
+
       if (!_isDebounceTrigger(autofill)) continue;
       if (!_shouldConsiderAutofill(field, autofill, changedKey)) continue;
       _scheduleAutofill(field, autofill);
@@ -376,6 +387,11 @@ class _SDUIRendererState extends State<SDUIRenderer> {
       return;
     }
 
+    if (_isBlurTrigger(autofill)) {
+      _executeAutofill(field);
+      return;
+    }
+
     final delay = Duration(milliseconds: autofill.debounceMs);
     _autofillTimers[field.key]?.cancel();
     _autofillTimers[field.key] = Timer(delay, () {
@@ -383,8 +399,14 @@ class _SDUIRendererState extends State<SDUIRenderer> {
     });
   }
 
+  bool _isBlurTrigger(SDUIAutofill autofill) {
+    return autofill.trigger.trim().toLowerCase() == 'blur';
+  }
+
   bool _isDebounceTrigger(SDUIAutofill autofill) {
-    return autofill.trigger.trim().toLowerCase() == 'debounce';
+    final trigger = autofill.trigger.trim().toLowerCase();
+    final triggers = ['debounce', 'blur'];
+    return triggers.contains(trigger);
   }
 
   bool _isManualTrigger(SDUIAutofill autofill) {
@@ -425,10 +447,6 @@ class _SDUIRendererState extends State<SDUIRenderer> {
     if (autofill == null || autofill.enabled != true) return;
     if (!_autofillConditionsMet(autofill)) return;
     if (autofill.endpoint.trim().isEmpty) {
-      Logger.logWarning(
-        'Autofill endpoint missing for field ${field.key}',
-        tag: 'Autofill',
-      );
       return;
     }
 
@@ -587,9 +605,21 @@ class _SDUIRendererState extends State<SDUIRenderer> {
         return _startsWith(left, right);
       case 'ends_with':
         return _endsWith(left, right);
+      case 'empty':
+        return _isEmpty(left);
+      case 'not_empty':
+        return !_isEmpty(left);
       default:
         return false;
     }
+  }
+
+  bool _isEmpty(dynamic value) {
+    if (value == null) return true;
+    if (value is String) return value.trim().isEmpty;
+    if (value is Iterable) return value.isEmpty;
+    if (value is Map) return value.isEmpty;
+    return false;
   }
 
   bool _isEqual(dynamic left, dynamic right) {
