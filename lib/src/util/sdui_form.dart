@@ -2,12 +2,14 @@ import 'package:sdui/src/util/data_enhance.dart';
 
 class SDUIForm {
   final String name;
+  final String? key;
   final String? description;
   final SDUIPages form;
   final SDUIMeta? meta;
 
   SDUIForm({
     required this.name,
+    this.key,
     this.description,
     required this.form,
     this.meta,
@@ -19,6 +21,24 @@ class SDUIForm {
       description: json['description'],
       form: SDUIPages.fromJson(json['pages']),
       meta: json['meta'] != null ? SDUIMeta.fromJson(json['meta']) : null,
+    );
+  }
+
+  factory SDUIForm.fromApiJson(Map<String, dynamic> json) {
+    final name = dataGet(json, 'name', defaultValue: null);
+    final key = dataGet(json, 'key', defaultValue: null);
+    final description = dataGet(json, 'description', defaultValue: null);
+    final pages = dataGet(json, 'form.pages', defaultValue: null);
+    final meta = dataGet(json, 'meta', defaultValue: null);
+
+    return SDUIForm(
+      name: name,
+      key: key,
+      description: description,
+      form: SDUIPages.fromJson(pages),
+      meta: (meta != null && meta is Map<String, dynamic>)
+          ? SDUIMeta.fromJson(meta)
+          : null,
     );
   }
 }

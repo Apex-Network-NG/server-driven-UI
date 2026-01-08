@@ -668,7 +668,7 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   urlUsaWireTransferForm() {
-    navigateToFormView(formId: "019b75d5-64b7-7118-9edf-d283b7535eac");
+    navigateToFormView(formId: "019b7530-50c4-705d-873e-e7994899d7be");
   }
 
   globalSwiftTransferForm() {
@@ -1275,7 +1275,7 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   urlGlobalSwiftTransferForm() {
-    navigateToFormView(formId: "019b75d6-c701-728e-a64c-76890fdbfa7c");
+    navigateToFormView(formId: "019b7530-8b65-72cd-84c0-f2eb269690b6");
   }
 
   ibanSepaTransferForm() {
@@ -1814,7 +1814,7 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   urlIbanSepaTransferForm() {
-    navigateToFormView(formId: "019b7545-f661-7215-ab33-6bb3611a1674");
+    navigateToFormView(formId: "019b7530-e974-7080-83d0-9034c70c8ec2");
   }
 
   ukChapsTransferForm() {
@@ -2387,7 +2387,7 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   urlUkChapsTransferForm() {
-    navigateToFormView(formId: "019b75db-9e69-7301-9277-d1f882cde079");
+    navigateToFormView(formId: "019b7531-3c6c-71a3-84d6-296b62f3004f");
   }
 
   @override

@@ -19,22 +19,20 @@ class _FormViewState extends State<FormView> {
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
         title: Text("Form View"),
       ),
-      body: Expanded(
-        child: SDUIFrame(
-          formJson: widget.formJson,
-          formId: widget.formId,
-          formUrl: widget.formUrl,
-          onSubmit: (data) async {
-            await showDialog(
-              context: context,
-              builder: (context) => AlertDialog(
-                title: Text("Form Submitted"),
-                content: Text("Form submitted with data: $data"),
-              ),
-            );
-          },
-          onFieldChanged: (key, value) {},
-        ),
+      body: SDUIFrame(
+        formJson: widget.formJson,
+        formId: widget.formId,
+        formUrl: widget.formUrl,
+        onSubmit: (data) async {
+          await showDialog(
+            context: context,
+            builder: (context) => AlertDialog(
+              title: Text("Form Submitted"),
+              content: Text("Form submitted with data: $data"),
+            ),
+          );
+        },
+        onFieldChanged: (key, value) {},
       ),
     );
   }

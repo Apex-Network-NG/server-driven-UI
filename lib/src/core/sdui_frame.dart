@@ -131,12 +131,21 @@ class _SDUIFrameState extends State<SDUIFrame> {
   }
 
   Future<void> _loadFormFromId(String formId) async {
-    final jsonString = await provider.fetchFormJsonString(formId);
-    final formJson = _resolveFormJson(jsonString);
-    if (formJson == null) {
-      throw Exception(provider.errorMessage ?? 'Invalid form payload');
+    try {
+      final jsonString = await provider.fetchFormJsonString(formId);
+
+      final formJson = _resolveFormJson(jsonString);
+      if (formJson == null) {
+        throw Exception(provider.errorMessage ?? 'Invalid form payload');
+      }
+      _form = SDUIForm.fromApiJson(formJson);
+    } catch (e, s) {
+      Logger.logError(
+        'Failed to load form from id: $e, stack: $s',
+        tag: 'SDUIFrame',
+      );
+      throw Exception(e.toString());
     }
-    _form = SDUIForm.fromJson(formJson);
   }
 
   Future<void> _loadFormFromUrl(String url) async {
@@ -155,7 +164,11 @@ class _SDUIFrameState extends State<SDUIFrame> {
       final decoded = jsonDecode(jsonString);
       if (decoded is Map<String, dynamic>) return decoded;
       if (decoded is Map) return Map<String, dynamic>.from(decoded);
-    } catch (_) {
+    } catch (e, s) {
+      Logger.logError(
+        'Failed to resolve form json: $e, stack: $s',
+        tag: 'SDUIFrame',
+      );
       return null;
     }
     return null;
