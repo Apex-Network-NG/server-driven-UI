@@ -1,16 +1,24 @@
 import 'dart:convert';
 
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:sdui/src/config/autofill/autofill_api_config.dart';
 import 'package:sdui/src/core/service/dio_service.dart';
 import 'package:sdui/src/core/service/forms/form_repo.dart';
 import 'package:sdui/src/util/mixins/request_mixin.dart';
 
 class FormProvider extends ChangeNotifier {
-  FormProvider._({FormRepo? repo}) : _repo = repo ?? FormRepo(DioService().dio);
+  FormProvider._({FormRepo? repo})
+    : _defaultRepo = repo ?? FormRepo(DioService().dio);
 
   static final FormProvider instance = FormProvider._();
 
-  final FormRepo _repo;
+  final FormRepo _defaultRepo;
+  FormRepo? _activeRepoForCancel;
+  FormRepo? _customDioRepo;
+  Dio? _customDioRef;
+  FormRepo? _customBaseUrlRepo;
+  String? _customBaseUrlRef;
   bool _isLoading = false;
   String? _errorMessage;
   String? _formJsonString;
@@ -27,7 +35,9 @@ class FormProvider extends ChangeNotifier {
       _errorMessage = null;
       notifyListeners();
 
-      final ApiResponse response = await _repo.getForm(formId);
+      final repo = _resolveRepo();
+      _activeRepoForCancel = repo;
+      final ApiResponse response = await repo.getForm(formId);
       if (response.isSuccess == true && response.data != null) {
         final jsonString = _stringifyJson(response.data);
         if (jsonString == null) {
@@ -61,7 +71,9 @@ class FormProvider extends ChangeNotifier {
     _errorMessage = null;
     notifyListeners();
 
-    final ApiResponse response = await _repo.getFormFromUrl(url);
+    final repo = _resolveRepo();
+    _activeRepoForCancel = repo;
+    final ApiResponse response = await repo.getFormFromUrl(url);
     if (response.isSuccess == true && response.data != null) {
       final jsonString = _stringifyJson(response.data);
       if (jsonString == null) {
@@ -92,7 +104,43 @@ class FormProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  void cancelFetch() => _repo.cancelRequest('getForm');
+  void cancelFetch() {
+    final repo = _activeRepoForCancel ?? _defaultRepo;
+    repo.cancelRequest('getForm');
+    repo.cancelRequest('getFormFromUrl');
+  }
+
+  FormRepo _resolveRepo() {
+    final config = SDUIAutofillApiRegistry.config;
+    final configuredDio = config.dio;
+
+    if (configuredDio != null) {
+      if (!identical(_customDioRef, configuredDio) || _customDioRepo == null) {
+        _customDioRef = configuredDio;
+        _customDioRepo = FormRepo(configuredDio);
+      }
+      return _customDioRepo!;
+    }
+
+    final configuredBaseUrl = config.baseUrl?.trim();
+    if (configuredBaseUrl == null || configuredBaseUrl.isEmpty) {
+      return _defaultRepo;
+    }
+
+    if (_customBaseUrlRef == configuredBaseUrl && _customBaseUrlRepo != null) {
+      return _customBaseUrlRepo!;
+    }
+
+    final baseDio = DioService().dio;
+    final scopedDio = Dio(baseDio.options.copyWith(baseUrl: configuredBaseUrl));
+    scopedDio.httpClientAdapter = baseDio.httpClientAdapter;
+    scopedDio.transformer = baseDio.transformer;
+    scopedDio.interceptors.addAll(baseDio.interceptors);
+
+    _customBaseUrlRef = configuredBaseUrl;
+    _customBaseUrlRepo = FormRepo(scopedDio);
+    return _customBaseUrlRepo!;
+  }
 
   String? _stringifyJson(dynamic data) {
     if (data == null) return null;

@@ -16,11 +16,21 @@ class SDUIForm {
   });
 
   factory SDUIForm.fromJson(Map<String, dynamic> json) {
+    final pages = dataGet(
+      json,
+      'pages',
+      defaultValue: dataGet(json, 'form.pages', defaultValue: const []),
+    );
+    final meta = dataGet(json, 'meta', defaultValue: null);
+
     return SDUIForm(
       name: json['name'],
+      key: json['key'],
       description: json['description'],
-      form: SDUIPages.fromJson(json['pages']),
-      meta: json['meta'] != null ? SDUIMeta.fromJson(json['meta']) : null,
+      form: SDUIPages.fromJson(pages),
+      meta: (meta != null && meta is Map)
+          ? SDUIMeta.fromJson(Map<dynamic, dynamic>.from(meta))
+          : null,
     );
   }
 
@@ -621,20 +631,29 @@ class SDUIOptionProperties {
   final String type;
   final List<SDUIOption> data;
   final int? maxSelect;
+  final SDUIOptionSource? source;
 
   SDUIOptionProperties({
     required this.type,
     required this.data,
     this.maxSelect,
+    this.source,
   });
 
   factory SDUIOptionProperties.fromJson(Map<String, dynamic> json) {
+    final rawData = json['data'];
     return SDUIOptionProperties(
-      type: json['type'],
-      data: (json['data'] as List<dynamic>)
-          .map((option) => SDUIOption.fromJson(option))
+      type: json['type']?.toString() ?? 'select',
+      data: (rawData is List ? rawData : const [])
+          .whereType<Map>()
+          .map(
+            (option) => SDUIOption.fromJson(Map<String, dynamic>.from(option)),
+          )
           .toList(),
       maxSelect: json['max_select'],
+      source: json['source'] is Map<String, dynamic>
+          ? SDUIOptionSource.fromJson(Map<String, dynamic>.from(json['source']))
+          : null,
     );
   }
 }
@@ -646,12 +665,85 @@ class SDUIOption {
   SDUIOption({required this.key, required this.value});
 
   factory SDUIOption.fromJson(Map<String, dynamic> json) {
-    return SDUIOption(key: json['key'], value: json['value']);
+    return SDUIOption(
+      key: json['key']?.toString() ?? '',
+      value: json['value']?.toString() ?? '',
+    );
   }
 
   @override
   String toString() {
     return 'SDUIOption(key: $key, value: $value)';
+  }
+}
+
+class SDUIOptionSource {
+  final SDUIAutofillWhen? when;
+  final String method;
+  final List<SDUIAutofillParam> params;
+  final bool enabled;
+  final List<String> headers;
+  final String endpoint;
+  final String keyPath;
+  final String valuePath;
+  final String itemsPath;
+  final List<String> triggers;
+  final String transport;
+  final List<String> dependsOn;
+
+  SDUIOptionSource({
+    required this.when,
+    required this.method,
+    required this.params,
+    required this.enabled,
+    required this.headers,
+    required this.endpoint,
+    required this.keyPath,
+    required this.valuePath,
+    required this.itemsPath,
+    required this.triggers,
+    required this.transport,
+    required this.dependsOn,
+  });
+
+  factory SDUIOptionSource.fromJson(Map<String, dynamic> json) {
+    return SDUIOptionSource(
+      when: json['when'] is Map<String, dynamic>
+          ? SDUIAutofillWhen.fromJson(Map<String, dynamic>.from(json['when']))
+          : null,
+      method: (json['method'] ?? 'GET').toString(),
+      params:
+          (json['params'] as List<dynamic>?)
+              ?.whereType<Map>()
+              .map(
+                (e) => SDUIAutofillParam.fromJson(Map<String, dynamic>.from(e)),
+              )
+              .toList() ??
+          const [],
+      enabled: json['enabled'] ?? true,
+      headers:
+          (json['headers'] as List<dynamic>?)
+              ?.map((e) => e.toString())
+              .toList() ??
+          const [],
+      endpoint: json['endpoint']?.toString() ?? '',
+      keyPath: json['key_path']?.toString() ?? '',
+      valuePath: json['value_path']?.toString() ?? '',
+      itemsPath: json['items_path']?.toString() ?? 'data',
+      triggers:
+          (json['triggers'] as List<dynamic>?)
+              ?.map((e) => e.toString().trim().toLowerCase())
+              .where((e) => e.isNotEmpty)
+              .toList() ??
+          const [],
+      transport: json['transport']?.toString() ?? 'direct',
+      dependsOn:
+          (json['depends_on'] as List<dynamic>?)
+              ?.map((e) => e.toString())
+              .where((e) => e.trim().isNotEmpty)
+              .toList() ??
+          const [],
+    );
   }
 }
 

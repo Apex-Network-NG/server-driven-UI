@@ -6,12 +6,14 @@ class BaseSDUIModals extends StatefulWidget {
   final List<String>? selectedOptionsKeys;
   final String? headerText;
   final SDUIField? field;
+  final List<SDUIOption>? optionsData;
 
   const BaseSDUIModals({
     super.key,
     this.selectedOptionsKeys,
     this.headerText,
     this.field,
+    this.optionsData,
   });
 
   @override
@@ -25,7 +27,8 @@ class _BaseSDUIModalsState extends State<BaseSDUIModals> {
   void initState() {
     super.initState();
     if (widget.selectedOptionsKeys != null) {
-      final options = widget.field?.optionProperties?.data ?? [];
+      final options =
+          widget.optionsData ?? widget.field?.optionProperties?.data ?? [];
       for (var key in widget.selectedOptionsKeys!) {
         final option = options.where((option) => option.key == key);
         if (option.isNotEmpty) {
@@ -94,7 +97,8 @@ class _BaseSDUIModalsState extends State<BaseSDUIModals> {
 
   @override
   Widget build(BuildContext context) {
-    final options = widget.field?.optionProperties?.data ?? [];
+    final options =
+        widget.optionsData ?? widget.field?.optionProperties?.data ?? [];
     final optionsType = widget.field?.optionProperties?.type;
     final isMultiSelect = optionsType == 'multi-select';
     final theme = Theme.of(context);

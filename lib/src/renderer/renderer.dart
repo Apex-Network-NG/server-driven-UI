@@ -549,7 +549,12 @@ class _SDUIRendererState extends State<SDUIRenderer> {
       return trimmed;
     }
     if (baseUrl == null || baseUrl.trim().isEmpty) return trimmed;
-    return Uri.parse(baseUrl).resolve(trimmed).toString();
+
+    final normalizedBase = baseUrl.trim().endsWith('/')
+        ? baseUrl.trim()
+        : '${baseUrl.trim()}/';
+    final normalizedEndpoint = trimmed.replaceFirst(RegExp(r'^/+'), '');
+    return Uri.parse(normalizedBase).resolve(normalizedEndpoint).toString();
   }
 
   bool _autofillConditionsMet(SDUIAutofill autofill) {
@@ -1047,14 +1052,40 @@ class _SDUIRendererState extends State<SDUIRenderer> {
 
   bool _evaluateOperator(String op, dynamic left, dynamic right) {
     final normalizedOp = op.trim().toLowerCase();
-    final l = left?.toString().trim() ?? '';
-    final r = right?.toString().trim() ?? '';
 
     switch (normalizedOp) {
       case 'is':
-        return l == r;
+        return _isEqual(left, right);
       case 'is_not':
-        return l != r;
+        return !_isEqual(left, right);
+      case 'length_gt':
+        return _lengthCompare(left, right, (l, r) => l > r);
+      case 'length_gte':
+        return _lengthCompare(left, right, (l, r) => l >= r);
+      case 'length_lt':
+        return _lengthCompare(left, right, (l, r) => l < r);
+      case 'length_lte':
+        return _lengthCompare(left, right, (l, r) => l <= r);
+      case 'length_eq':
+        return _lengthCompare(left, right, (l, r) => l == r);
+      case 'gt':
+        return _numericCompare(left, right, (l, r) => l > r);
+      case 'gte':
+        return _numericCompare(left, right, (l, r) => l >= r);
+      case 'lt':
+        return _numericCompare(left, right, (l, r) => l < r);
+      case 'lte':
+        return _numericCompare(left, right, (l, r) => l <= r);
+      case 'contains':
+        return _containsValue(left, right);
+      case 'starts_with':
+        return _startsWith(left, right);
+      case 'ends_with':
+        return _endsWith(left, right);
+      case 'empty':
+        return _isEmpty(left);
+      case 'not_empty':
+        return !_isEmpty(left);
       default:
         return false;
     }

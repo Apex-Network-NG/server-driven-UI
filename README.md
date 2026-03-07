@@ -46,14 +46,14 @@ If your form uses URL fields with clickable links (like terms and conditions), y
 ```xml
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <!-- ... existing configuration ... -->
-    
+
     <queries>
         <!-- Existing queries -->
         <intent>
             <action android:name="android.intent.action.PROCESS_TEXT"/>
             <data android:mimeType="text/plain"/>
         </intent>
-        
+
         <!-- Required for URL launcher to work on Android 11+ -->
         <intent>
             <action android:name="android.intent.action.VIEW" />
@@ -224,6 +224,8 @@ import 'package:sdui/sdui.dart';
 SDUIAutofillApiRegistry.register(
   SDUIAutofillApiConfig(
     baseUrl: 'https://internal.api',
+    // Optional: provide your own Dio client (interceptors, adapter, cert pinning, etc.)
+    // dio: customDio,
     headers: {
       'auth': SDUIAutofillApiHeader(
         name: 'Authorization',
@@ -242,6 +244,9 @@ SDUIAutofillApiRegistry.register(
 );
 ```
 
+This same config is also used when loading forms by `formId`/`formUrl`, so
+custom `dio` and `baseUrl` apply there too.
+
 ### 2) Add `autofill` to any field in your JSON
 
 ```json
@@ -254,18 +259,18 @@ SDUIAutofillApiRegistry.register(
   "required": true,
   "autofill": {
     "map": [
-      {"path": "data.accountDetails.name", "target": "account_holder_name"},
-      {"path": "data.currency.code", "target": "currency"}
+      { "path": "data.accountDetails.name", "target": "account_holder_name" },
+      { "path": "data.currency.code", "target": "currency" }
     ],
     "when": {
       "all": [
-        {"key": "wire_account_number", "value": 10, "operator": "length_gte"}
+        { "key": "wire_account_number", "value": 10, "operator": "length_gte" }
       ]
     },
     "method": "POST",
     "params": [
-      {"key": "account_number", "value": "{field:wire_account_number}"},
-      {"key": "bank", "value": "{field:bank}"}
+      { "key": "account_number", "value": "{field:wire_account_number}" },
+      { "key": "bank", "value": "{field:bank}" }
     ],
     "enabled": true,
     "headers": ["auth", "ip", "geolocation"],
@@ -278,6 +283,7 @@ SDUIAutofillApiRegistry.register(
 ```
 
 **Notes**
+
 - `headers` are not real header values; they reference keys registered in
   `SDUIAutofillApiConfig`.
 - `params` supports field references with `{field:field_key}`.
@@ -286,22 +292,22 @@ SDUIAutofillApiRegistry.register(
 
 ## 📋 Supported Field Types
 
-| Field Type | Description | Example |
-|------------|-------------|---------|
-| `short-text` | Single line text input | Name, username |
-| `medium-text` | Medium length text | Address, description |
-| `long-text` | Multi-line text area | Comments, messages |
-| `email` | Email input with validation | user@example.com |
-| `phone` | Phone number with country picker | +1 (555) 123-4567 |
-| `url` | URL input with validation | https://example.com |
-| `number` | Numeric input | Age, quantity |
-| `password` | Password input with visibility toggle | •••••••• |
-| `date` | Date picker | 2024-01-15 |
-| `datetime` | Date and time picker | 2024-01-15 14:30 |
-| `boolean` | Checkbox/toggle | Terms acceptance |
-| `options` | Radio buttons, dropdown, multi-select | Gender, interests |
-| `country` | Country picker | United States |
-| `file` | File upload | Documents, images |
+| Field Type    | Description                           | Example              |
+| ------------- | ------------------------------------- | -------------------- |
+| `short-text`  | Single line text input                | Name, username       |
+| `medium-text` | Medium length text                    | Address, description |
+| `long-text`   | Multi-line text area                  | Comments, messages   |
+| `email`       | Email input with validation           | user@example.com     |
+| `phone`       | Phone number with country picker      | +1 (555) 123-4567    |
+| `url`         | URL input with validation             | https://example.com  |
+| `number`      | Numeric input                         | Age, quantity        |
+| `password`    | Password input with visibility toggle | ••••••••             |
+| `date`        | Date picker                           | 2024-01-15           |
+| `datetime`    | Date and time picker                  | 2024-01-15 14:30     |
+| `boolean`     | Checkbox/toggle                       | Terms acceptance     |
+| `options`     | Radio buttons, dropdown, multi-select | Gender, interests    |
+| `country`     | Country picker                        | United States        |
+| `file`        | File upload                           | Documents, images    |
 
 ### Clickable Links in Help Text
 
@@ -389,6 +395,7 @@ class MyCustomTextField extends SDUIBaseWidget {
 
 Calling `onFieldChanged` updates the value and triggers SDK validation. The SDK
 validates:
+
 - required (from `field.required` or a `required` rule)
 - constraints (`min`, `max`, `regex`, etc.)
 - `validations` rules (email, between, gt, and more)
@@ -425,14 +432,14 @@ SDUIFrame(
 @override
 String? validateField(value) {
   formManager.clearError(field.key);
-  
+
   // Custom validation rules
   if (field.required && (value == null || value.isEmpty)) {
     final error = '${field.label} is required';
     formManager.addError(field.key, error);
     return error;
   }
-  
+
   // Email domain validation
   if (field.type == 'email' && value != null) {
     final domain = value.split('@').last;
@@ -441,7 +448,7 @@ String? validateField(value) {
       return 'Email domain not allowed';
     }
   }
-  
+
   return null;
 }
 ```
@@ -469,10 +476,10 @@ class _MyFormPageState extends State<MyFormPage> {
           // Access form data
           final allData = formManager.getAllFormData();
           final specificField = formManager.getFieldValue('email');
-          
+
           // Validate form
           final isValid = formManager.validateForm();
-          
+
           if (isValid) {
             submitForm(allData);
           }
@@ -493,14 +500,14 @@ class _MyFormPageState extends State<MyFormPage> {
   "title": "User Registration",
   "version": 1,
   "meta": {
-    "ui": {"layout": "vertical", "progress": true},
-    "i18n": {"defaultLocale": "en", "translations": []}
+    "ui": { "layout": "vertical", "progress": true },
+    "i18n": { "defaultLocale": "en", "translations": [] }
   },
   "properties": {
     "dateFormat": "yyyy-MM-dd",
     "timeFormat": "HH:mm",
     "datetimeFormat": "yyyy-MM-dd HH:mm",
-    "numberFormat": {"decimal": ".", "thousand": ","}
+    "numberFormat": { "decimal": ".", "thousand": "," }
   },
   "form": {
     "pages": [
@@ -520,8 +527,8 @@ class _MyFormPageState extends State<MyFormPage> {
                 "type": "short-text",
                 "required": true,
                 "placeholder": "Enter your first name",
-                "ui": {"multilineRows": 1},
-                "constraints": {"minLength": 2, "maxLength": 30},
+                "ui": { "multilineRows": 1 },
+                "constraints": { "minLength": 2, "maxLength": 30 },
                 "validations": []
               },
               {
@@ -530,8 +537,8 @@ class _MyFormPageState extends State<MyFormPage> {
                 "type": "short-text",
                 "required": true,
                 "placeholder": "Enter your last name",
-                "ui": {"multilineRows": 1},
-                "constraints": {"minLength": 2, "maxLength": 30},
+                "ui": { "multilineRows": 1 },
+                "constraints": { "minLength": 2, "maxLength": 30 },
                 "validations": []
               },
               {
@@ -540,8 +547,11 @@ class _MyFormPageState extends State<MyFormPage> {
                 "type": "email",
                 "required": true,
                 "placeholder": "your.email@example.com",
-                "ui": {"multilineRows": 1},
-                "constraints": {"allowedDomains": [], "disallowedDomains": []},
+                "ui": { "multilineRows": 1 },
+                "constraints": {
+                  "allowedDomains": [],
+                  "disallowedDomains": []
+                },
                 "validations": []
               },
               {
@@ -550,7 +560,7 @@ class _MyFormPageState extends State<MyFormPage> {
                 "type": "phone",
                 "required": false,
                 "placeholder": "Enter your phone number",
-                "ui": {"multilineRows": 1},
+                "ui": { "multilineRows": 1 },
                 "constraints": {},
                 "validations": []
               },
@@ -560,7 +570,7 @@ class _MyFormPageState extends State<MyFormPage> {
                 "type": "date",
                 "required": true,
                 "placeholder": "Select your birth date",
-                "ui": {"multilineRows": 1},
+                "ui": { "multilineRows": 1 },
                 "constraints": {},
                 "validations": []
               },
@@ -570,8 +580,11 @@ class _MyFormPageState extends State<MyFormPage> {
                 "type": "country",
                 "required": true,
                 "placeholder": "Select your country",
-                "ui": {"multilineRows": 1},
-                "constraints": {"allowedCountries": [], "disallowedCountries": []},
+                "ui": { "multilineRows": 1 },
+                "constraints": {
+                  "allowedCountries": [],
+                  "disallowedCountries": []
+                },
                 "validations": []
               },
               {
@@ -580,16 +593,16 @@ class _MyFormPageState extends State<MyFormPage> {
                 "type": "options",
                 "required": true,
                 "placeholder": "Select your gender",
-                "ui": {"multilineRows": 1},
+                "ui": { "multilineRows": 1 },
                 "constraints": {},
                 "validations": [],
                 "option_properties": {
                   "type": "radio",
                   "data": [
-                    {"key": "male", "value": "Male"},
-                    {"key": "female", "value": "Female"},
-                    {"key": "other", "value": "Other"},
-                    {"key": "prefer_not_to_say", "value": "Prefer not to say"}
+                    { "key": "male", "value": "Male" },
+                    { "key": "female", "value": "Female" },
+                    { "key": "other", "value": "Other" },
+                    { "key": "prefer_not_to_say", "value": "Prefer not to say" }
                   ]
                 }
               },
@@ -599,7 +612,7 @@ class _MyFormPageState extends State<MyFormPage> {
                 "type": "image",
                 "required": false,
                 "placeholder": "Upload your profile picture",
-                "ui": {"multilineRows": 1},
+                "ui": { "multilineRows": 1 },
                 "constraints": {
                   "accept": ["image/jpeg", "image/png"],
                   "maxFileSize": 5242880,
@@ -613,7 +626,7 @@ class _MyFormPageState extends State<MyFormPage> {
                 "type": "boolean",
                 "required": true,
                 "help_text": "By continuing, you accept our [terms and conditions](https://example.com/privacy).",
-                "ui": {"multilineRows": 1},
+                "ui": { "multilineRows": 1 },
                 "constraints": {},
                 "validations": []
               }
@@ -634,6 +647,7 @@ class _MyFormPageState extends State<MyFormPage> {
 The main widget for rendering SDUI forms.
 
 **Constructor:**
+
 ```dart
 SDUIFrame({
   required Map<String, dynamic> formJson,
@@ -649,6 +663,7 @@ SDUIFrame({
 Manages form state, validation, and data.
 
 **Key Methods:**
+
 - `getFieldValue(String key)` - Get field value
 - `setFieldValue(String key, dynamic value)` - Set field value
 - `getAllFormData()` - Get all form data
@@ -662,6 +677,7 @@ Manages form state, validation, and data.
 Registry for custom field widgets.
 
 **Key Methods:**
+
 - `register(SDUIFieldType type, SDUIWidgetFactory factory, {bool override})` - Register custom widget
 - `unregister(SDUIFieldType fieldType)` - Unregister widget
 - `isRegistered(SDUIFieldType fieldType)` - Check if type is registered
@@ -674,11 +690,13 @@ Registry for custom field widgets.
 If clickable links in help text aren't working on Android, ensure you've added the required `<queries>` configuration to your `AndroidManifest.xml` as described in the Platform Configuration section above.
 
 **Error symptoms:**
+
 - Links don't respond to taps
 - Log messages like "component name for https://example.com is null"
 
 **Solution:**
 Add the Android queries configuration and rebuild your app:
+
 ```bash
 flutter clean && flutter build apk
 ```

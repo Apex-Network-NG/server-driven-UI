@@ -5,11 +5,7 @@ class SDUIAutofillApiHeader {
   final String? value;
   final String Function()? resolver;
 
-  const SDUIAutofillApiHeader({
-    required this.name,
-    this.value,
-    this.resolver,
-  });
+  const SDUIAutofillApiHeader({required this.name, this.value, this.resolver});
 
   String? resolveValue() => resolver?.call() ?? value;
 }
