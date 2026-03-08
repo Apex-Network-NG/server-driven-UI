@@ -648,7 +648,9 @@ class _BuildDropSelectionState extends State<_BuildDropSelection> {
 
     List<String>? selectedValue = formManager.getSelectedOption(field.key);
     final optionsData = widget.optionsData;
-    final optionsType = field.optionProperties?.type;
+    final uiType = SDUIOptionsUiType.fromFieldType(
+      field.optionProperties?.type,
+    );
     final defaultValue = field.defaultValue;
 
     if ((selectedValue == null || selectedValue.isEmpty) &&
@@ -663,11 +665,44 @@ class _BuildDropSelectionState extends State<_BuildDropSelection> {
     final selectedOption = optionsData
         .where((option) => selectedValue?.contains(option.key) ?? false)
         .toList();
-    final isMultiSelect = optionsType == 'multi-select';
+    final isMultiSelect = uiType.isMulti;
     final theme = Theme.of(context);
     final loadingHint = widget.isLoading && optionsData.isEmpty
         ? 'Loading options...'
         : hintText;
+    final selectedKeys = selectedValue ?? const <String>[];
+    final customBuilder = SDUIOptionsUiRegistry.instance.builderFor(uiType);
+
+    if (customBuilder != null) {
+      return customBuilder(
+        context,
+        SDUIOptionsUiContext(
+          field: field,
+          formManager: formManager,
+          options: optionsData,
+          selectedKeys: selectedKeys,
+          isLoading: widget.isLoading,
+          uiType: uiType,
+          errorText: formManager.getError(field.key),
+          maxSelect: field.optionProperties?.maxSelect,
+          readOnly: field.readonly,
+          selectSingle: (key) => _setSelection([key], optionsData),
+          selectMany: (keys) {
+            final sanitized = keys
+                .map((e) => e.trim())
+                .where((e) => e.isNotEmpty)
+                .toSet()
+                .toList();
+            if (!uiType.isMulti && sanitized.isNotEmpty) {
+              _setSelection([sanitized.first], optionsData);
+              return;
+            }
+            _setSelection(sanitized, optionsData);
+          },
+          toggleMany: (key) => _toggleSelection(key, optionsData),
+        ),
+      );
+    }
 
     return Selector(
       hintText: loadingHint,
@@ -727,15 +762,55 @@ class _BuildDropSelectionState extends State<_BuildDropSelection> {
         if (!context.mounted) return;
         if (result != null) {
           final options = List<String>.from(result.map((e) => e.key));
-          formManager.setSelectedOption(field.key, options);
-          widget.widget.onChanged?.call(field.key, options);
-          if (mounted) setState(() {});
-          for (final element in options) {
-            _validateField(element, optionsData);
-          }
+          _setSelection(options, optionsData);
         }
       },
     );
+  }
+
+  void _setSelection(List<String> keys, List<SDUIOption> optionsData) {
+    final formManager = widget.widget.formManager;
+    final field = widget.widget.field;
+    final sanitized = keys
+        .map((e) => e.trim())
+        .where((e) => e.isNotEmpty)
+        .toSet()
+        .toList();
+
+    formManager.setSelectedOption(field.key, sanitized);
+    widget.widget.onChanged?.call(field.key, sanitized);
+    if (mounted) setState(() {});
+
+    if (sanitized.isEmpty) {
+      _validateField(null, optionsData);
+      return;
+    }
+    for (final element in sanitized) {
+      _validateField(element, optionsData);
+    }
+  }
+
+  void _toggleSelection(String key, List<SDUIOption> optionsData) {
+    final field = widget.widget.field;
+    final current =
+        widget.widget.formManager.getSelectedOption(field.key) ?? [];
+    final next = current.toSet();
+
+    if (next.contains(key)) {
+      next.remove(key);
+    } else {
+      final maxSelect = field.optionProperties?.maxSelect;
+      if (maxSelect != null && next.length >= maxSelect) {
+        widget.widget.formManager.addError(
+          field.key,
+          'You can select at most $maxSelect option(s)',
+        );
+        return;
+      }
+      next.add(key);
+    }
+
+    _setSelection(next.toList(), optionsData);
   }
 
   void _validateField(String? value, List<SDUIOption> optionsData) {
@@ -810,6 +885,32 @@ class _BuildRadioOptionsState extends State<_BuildRadioOptions> {
       value = defaults;
     }
 
+    final customBuilder = SDUIOptionsUiRegistry.instance.builderFor(
+      SDUIOptionsUiType.radio,
+    );
+    if (customBuilder != null) {
+      return customBuilder(
+        context,
+        SDUIOptionsUiContext(
+          field: widget.widget.field,
+          formManager: formManager,
+          options: optionsData,
+          selectedKeys: value ?? const <String>[],
+          isLoading: widget.isLoading,
+          uiType: SDUIOptionsUiType.radio,
+          errorText: formManager.getError(widget.widget.field.key),
+          maxSelect: 1,
+          readOnly: widget.widget.field.readonly,
+          selectSingle: (key) => _setSelection(key, optionsData),
+          selectMany: (keys) {
+            if (keys.isEmpty) return;
+            _setSelection(keys.first, optionsData);
+          },
+          toggleMany: (key) => _setSelection(key, optionsData),
+        ),
+      );
+    }
+
     return Column(
       mainAxisAlignment: MainAxisAlignment.start,
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -834,10 +935,7 @@ class _BuildRadioOptionsState extends State<_BuildRadioOptions> {
           groupValue: value?.first,
           onChanged: (value) {
             if (value == null) return;
-            final fieldKey = widget.widget.field.key;
-            formManager.setSelectedOption(fieldKey, [value]);
-            widget.widget.onChanged?.call(fieldKey, value);
-            _validateField(value, optionsData);
+            _setSelection(value, optionsData);
           },
           child: LayoutBuilder(
             builder: (context, constraints) {
@@ -857,10 +955,7 @@ class _BuildRadioOptionsState extends State<_BuildRadioOptions> {
 
                   return InkWell(
                     onTap: () {
-                      final fieldKey = widget.widget.field.key;
-                      formManager.setSelectedOption(fieldKey, [option.key]);
-                      widget.widget.onChanged?.call(fieldKey, option.key);
-                      _validateField(option.key, optionsData);
+                      _setSelection(option.key, optionsData);
                     },
                     child: Container(
                       width: itemWidth,
@@ -898,6 +993,14 @@ class _BuildRadioOptionsState extends State<_BuildRadioOptions> {
         ),
       ],
     );
+  }
+
+  void _setSelection(String value, List<SDUIOption> optionsData) {
+    final fieldKey = widget.widget.field.key;
+    widget.widget.formManager.setSelectedOption(fieldKey, [value]);
+    widget.widget.onChanged?.call(fieldKey, value);
+    _validateField(value, optionsData);
+    if (mounted) setState(() {});
   }
 
   void _validateField(String? value, List<SDUIOption> optionsData) {

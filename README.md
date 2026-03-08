@@ -683,6 +683,56 @@ Registry for custom field widgets.
 - `isRegistered(SDUIFieldType fieldType)` - Check if type is registered
 - `getRegisteredTypes()` - Get all registered types
 
+### SDUIOptionsUiRegistry
+
+Registry for custom `options` field UIs by subtype while keeping SDK logic
+(remote source fetch, dependency triggers, response mapping, selection sync, and
+validation) in place.
+
+**UI Types:**
+
+- `SDUIOptionsUiType.select`
+- `SDUIOptionsUiType.radio`
+- `SDUIOptionsUiType.multiSelect`
+- `SDUIOptionsUiType.checkbox`
+
+**Key Methods:**
+
+- `register(SDUIOptionsUiType type, SDUIOptionsUiBuilder builder, {bool override})`
+- `builderFor(SDUIOptionsUiType type)`
+- `unregister(SDUIOptionsUiType type)`
+- `clear()`
+
+**Example:**
+
+```dart
+SDUIOptionsUiRegistry.instance.register(
+  SDUIOptionsUiType.radio,
+  (context, optionsContext) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: optionsContext.options.map((option) {
+        final selected = optionsContext.selectedKeys.contains(option.key);
+        return ListTile(
+          title: Text(option.value),
+          leading: Radio<bool>(
+            value: true,
+            groupValue: selected,
+            onChanged: optionsContext.readOnly
+                ? null
+                : (_) => optionsContext.selectSingle(option.key),
+          ),
+          onTap: optionsContext.readOnly
+              ? null
+              : () => optionsContext.selectSingle(option.key),
+        );
+      }).toList(),
+    );
+  },
+  override: true,
+);
+```
+
 ## 🚨 Troubleshooting
 
 ### URL Links Not Working on Android

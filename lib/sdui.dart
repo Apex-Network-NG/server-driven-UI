@@ -25,3 +25,4 @@ export 'src/config/bottomsheet/bottomsheet_service.dart';
 export 'src/config/country/country.dart';
 export 'src/config/country/country_code.dart';
 export 'src/config/country/country_service.dart';
+export 'src/config/options/options_ui_registry.dart';
