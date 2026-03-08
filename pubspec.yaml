@@ -8,7 +8,10 @@ environment:
   flutter: ">=1.17.0"
 
 dependencies:
-  circle_flags: 
+  circle_flags:
+    git:
+      url: https://github.com/cedvdb/flutter_circle_flags
+      ref: main
   collection: ^1.19.1
   dio: ^5.9.0
   dotted_border: ^3.1.0
