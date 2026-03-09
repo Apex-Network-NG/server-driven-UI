@@ -45,13 +45,17 @@ class _SDUIFieldRendererState extends State<SDUIFieldRenderer> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final fieldType = SDUIFieldType.fromValue(widget.field.type);
+    final useDefaultLoadingOverlay =
+        !SDUIWidgetRegistry.instance.isLoadingAwareRegistered(fieldType);
+
     final fieldContent = Stack(
       children: [
         AbsorbPointer(
-          absorbing: widget.isAutofillLoading,
+          absorbing: widget.isAutofillLoading && useDefaultLoadingOverlay,
           child: _buildFieldWidget(),
         ),
-        if (widget.isAutofillLoading)
+        if (widget.isAutofillLoading && useDefaultLoadingOverlay)
           Positioned.fill(
             child: Container(
               color: theme.colorScheme.surface.withValues(alpha: 0.8),
@@ -124,6 +128,7 @@ class _SDUIFieldRendererState extends State<SDUIFieldRenderer> {
       field: widget.field,
       formManager: widget.formManager,
       onChanged: widget.onChanged,
+      isLoading: widget.isAutofillLoading,
     );
 
     // If custom widget exists, use it
