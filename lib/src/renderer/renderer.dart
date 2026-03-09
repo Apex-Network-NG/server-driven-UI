@@ -49,6 +49,7 @@ class _SDUIRendererState extends State<SDUIRenderer> {
   final PageController _pageController = PageController();
   int _currentPageIndex = 0;
   late final Map<String, SDUIField> _fieldIndex;
+  late final Map<String, Set<String>> _autofillTargetsByDependencyKey;
   final Map<String, Object?> _resolvedDefaults = {};
   final Map<String, Timer> _autofillTimers = {};
   final Map<String, CancelToken> _autofillCancelTokens = {};
@@ -114,6 +115,7 @@ class _SDUIRendererState extends State<SDUIRenderer> {
         }
       }
     }
+    _autofillTargetsByDependencyKey = _buildAutofillTargetIndex();
 
     for (final field in _fieldIndex.values) {
       final resolvedDefault = _resolveDefaultValue(field);
@@ -326,6 +328,9 @@ class _SDUIRendererState extends State<SDUIRenderer> {
     _evaluateConditionalsForChangedField(key);
     _handleAutofillForChangedField(key);
     widget.onFieldChanged?.call(key, value);
+    scheduleMicrotask(() {
+      _clearDependentAutofillTargetsIfSourceHasError(key);
+    });
   }
 
   void _handleAutofillForBlur(String changedKey) {
@@ -383,6 +388,116 @@ class _SDUIRendererState extends State<SDUIRenderer> {
     }
 
     return keys;
+  }
+
+  Map<String, Set<String>> _buildAutofillTargetIndex() {
+    final index = <String, Set<String>>{};
+
+    for (final field in _fieldIndex.values) {
+      final autofill = field.autofill;
+      if (autofill == null || autofill.enabled != true || autofill.map.isEmpty) {
+        continue;
+      }
+
+      final targets = autofill.map
+          .map((mapping) => mapping.target.trim())
+          .where((key) => key.isNotEmpty)
+          .toSet();
+      if (targets.isEmpty) continue;
+
+      final dependencyKeys = _autofillDependencyKeys(field, autofill);
+      for (final dependencyKey in dependencyKeys) {
+        index.putIfAbsent(dependencyKey, () => <String>{}).addAll(targets);
+      }
+    }
+
+    return index;
+  }
+
+  void _clearDependentAutofillTargetsIfSourceHasError(String sourceKey) {
+    if (!mounted) return;
+    if (!widget.formManager.hasError(sourceKey)) return;
+
+    _cancelAutofillRequestsDependingOn(sourceKey);
+
+    final targets = _autofillTargetsByDependencyKey[sourceKey];
+    if (targets == null || targets.isEmpty) return;
+
+    for (final targetKey in targets) {
+      if (targetKey == sourceKey) continue;
+      final targetField = _fieldIndex[targetKey];
+      if (targetField == null) continue;
+
+      _clearFieldValue(targetField);
+      _evaluateConditionalsForChangedField(targetField.key);
+    }
+  }
+
+  void _cancelAutofillRequestsDependingOn(String sourceKey) {
+    for (final field in _fieldIndex.values) {
+      final autofill = field.autofill;
+      if (autofill == null || autofill.enabled != true) continue;
+      if (!_autofillDependencyKeys(field, autofill).contains(sourceKey)) {
+        continue;
+      }
+
+      final requestKey = 'autofill:${field.key}';
+      _autofillCancelTokens.remove(requestKey)?.cancel();
+      _autofillRequestIds.remove(field.key);
+      _setAutofillLoading(field.key, false);
+    }
+  }
+
+  void _clearFieldValue(SDUIField field) {
+    widget.formManager.clearError(field.key);
+
+    switch (field.type) {
+      case 'short-text':
+      case 'medium-text':
+      case 'long-text':
+      case 'text':
+      case 'email':
+      case 'url':
+      case 'password':
+      case 'phone':
+      case 'number':
+        widget.formManager.getController(field.key).clear();
+        widget.formManager.setFieldValue(field.key, null);
+        break;
+      case 'boolean':
+        widget.formManager.setBooleanValue(field.key, false);
+        widget.formManager.setFieldValue(field.key, null);
+        break;
+      case 'country':
+        widget.formManager.updateSelectedCountry(field.key, null);
+        widget.formManager.setFieldValue(field.key, null);
+        break;
+      case 'options':
+        widget.formManager.setSelectedOption(field.key, const []);
+        widget.formManager.setFieldValue(field.key, null);
+        break;
+      case 'date':
+        widget.formManager.setDateValue(field.key, null);
+        widget.formManager.setFieldValue(field.key, null);
+        break;
+      case 'datetime':
+        widget.formManager.setDateTimeValue(field.key, null);
+        widget.formManager.setFieldValue(field.key, null);
+        break;
+      case 'tag':
+        widget.formManager.setTagValues(field.key, const []);
+        widget.formManager.setFieldValue(field.key, const []);
+        break;
+      case 'file':
+      case 'image':
+      case 'video':
+      case 'document':
+        widget.formManager.setFileValue(field.key, null);
+        widget.formManager.setFieldValue(field.key, null);
+        break;
+      default:
+        widget.formManager.setFieldValue(field.key, null);
+    }
   }
 
   Set<String> _extractFieldKeysFromTemplate(String template) {
