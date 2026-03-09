@@ -419,7 +419,12 @@ class FormManager extends ChangeNotifier {
 
     formData.addAll(fieldValues);
     formData.addAll(booleanValues);
-    formData.addAll(selectedOptions);
+    selectedOptions.forEach((key, value) {
+      if (formData.containsKey(key) && formData[key] is! List) {
+        return;
+      }
+      formData[key] = value;
+    });
     formData.addAll(dateValues);
     formData.addAll(datetimeValues);
     formData.addAll(tagValues);

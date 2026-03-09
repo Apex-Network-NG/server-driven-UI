@@ -776,9 +776,15 @@ class _BuildDropSelectionState extends State<_BuildDropSelection> {
         .where((e) => e.isNotEmpty)
         .toSet()
         .toList();
+    final optionsType = SDUIOptionsUiType.fromFieldType(
+      field.optionProperties?.type,
+    );
 
     formManager.setSelectedOption(field.key, sanitized);
-    widget.widget.onChanged?.call(field.key, sanitized);
+    widget.widget.onChanged?.call(
+      field.key,
+      optionsType.isMulti ? sanitized : sanitized.firstOrNull,
+    );
     if (mounted) setState(() {});
 
     if (sanitized.isEmpty) {

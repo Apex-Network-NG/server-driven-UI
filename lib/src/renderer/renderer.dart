@@ -6,6 +6,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:sdui/src/config/autofill/autofill_api_config.dart';
 import 'package:sdui/src/config/country/country_form.dart';
+import 'package:sdui/src/config/options/options_ui_registry.dart';
 import 'package:sdui/src/core/service/dio_service.dart';
 import 'package:sdui/src/renderer/field_renderer.dart';
 import 'package:sdui/src/util/data_enhance.dart';
@@ -229,6 +230,10 @@ class _SDUIRendererState extends State<SDUIRenderer> {
         final options = _toStringList(value);
         if (options.isNotEmpty) {
           widget.formManager.setSelectedOption(field.key, options);
+          widget.formManager.setFieldValue(
+            field.key,
+            _normalizeOptionsFieldValue(field, options),
+          );
         }
         break;
 
@@ -284,6 +289,13 @@ class _SDUIRendererState extends State<SDUIRenderer> {
       return value.map((e) => e.toString()).toList();
     }
     return [value.toString()];
+  }
+
+  dynamic _normalizeOptionsFieldValue(SDUIField field, List<String> values) {
+    final optionsType = SDUIOptionsUiType.fromFieldType(
+      field.optionProperties?.type,
+    );
+    return optionsType.isMulti ? values : values.firstOrNull;
   }
 
   DateTime? _toDateTime(Object? value) {
@@ -522,7 +534,8 @@ class _SDUIRendererState extends State<SDUIRenderer> {
       final exactMatch = RegExp(r'^\{field:([^}]+)\}$').firstMatch(trimmed);
       if (exactMatch != null) {
         final key = exactMatch.group(1)?.trim();
-        return key == null ? null : values[key];
+        if (key == null) return null;
+        return _normalizeFieldTemplateValue(key, values[key]);
       }
 
       final matches = RegExp(r'\{field:([^}]+)\}').allMatches(raw);
@@ -531,7 +544,9 @@ class _SDUIRendererState extends State<SDUIRenderer> {
       var resolved = raw;
       for (final match in matches) {
         final key = match.group(1)?.trim();
-        final value = key == null ? null : values[key];
+        final value = key == null
+            ? null
+            : _normalizeFieldTemplateValue(key, values[key]);
         resolved = resolved.replaceAll(
           match.group(0)!,
           value?.toString() ?? '',
@@ -541,6 +556,19 @@ class _SDUIRendererState extends State<SDUIRenderer> {
     }
 
     return raw;
+  }
+
+  dynamic _normalizeFieldTemplateValue(String key, dynamic value) {
+    final field = _fieldIndex[key];
+    if (field == null) return value;
+    if (field.type != 'options') return value;
+    if (value is! List) return value;
+
+    final optionsType = SDUIOptionsUiType.fromFieldType(
+      field.optionProperties?.type,
+    );
+    if (optionsType.isMulti) return value;
+    return value.firstOrNull;
   }
 
   String _resolveAutofillEndpoint(String endpoint, String? baseUrl) {
@@ -773,7 +801,10 @@ class _SDUIRendererState extends State<SDUIRenderer> {
         final options = _toStringList(value);
         if (options.isEmpty) return;
         widget.formManager.setSelectedOption(field.key, options);
-        widget.formManager.setFieldValue(field.key, options);
+        widget.formManager.setFieldValue(
+          field.key,
+          _normalizeOptionsFieldValue(field, options),
+        );
         break;
 
       case 'date':
