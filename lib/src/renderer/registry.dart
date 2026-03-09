@@ -1,11 +1,11 @@
-import 'package:sdui/src/renderer/widget.dart';
+import 'package:flutter/widgets.dart';
 import 'package:sdui/src/util/enums.dart';
 import 'package:sdui/src/util/sdui_form.dart';
 import 'package:sdui/src/util/sdui_form_manager.dart';
 
 /// Factory function type for creating SDUI widgets
 typedef SDUIWidgetFactory =
-    dynamic Function({
+    Widget Function({
       required SDUIField field,
       required FormManager formManager,
       Function(String, dynamic)? onChanged,
@@ -28,7 +28,7 @@ class SDUIWidgetRegistry {
     return true;
   }
 
-  SDUIBaseWidget? create({
+  Widget? create({
     required SDUIField field,
     required FormManager formManager,
     Function(String, dynamic)? onChanged,
