@@ -425,6 +425,25 @@ SDUIFrame(
 )
 ```
 
+### Custom Submit Button
+
+```dart
+SDUISubmitButtonRegistry.instance.register(
+  (context, submitContext) {
+    return FilledButton(
+      onPressed: submitContext.submitForm,
+      child: const Text('Complete Transfer'),
+    );
+  },
+  override: true,
+);
+
+SDUIFrame(
+  formJson: formJson,
+  onSubmit: (data) => handleSubmission(data),
+)
+```
+
 ### Form Validation
 
 ```dart
@@ -702,6 +721,33 @@ validation) in place.
 - `builderFor(SDUIOptionsUiType type)`
 - `unregister(SDUIOptionsUiType type)`
 - `clear()`
+
+### SDUISubmitButtonRegistry
+
+Registry for customizing the default submit button while keeping built-in
+previous/next navigation behavior.
+
+**Key Methods:**
+
+- `register(SDUISubmitButtonBuilder builder, {bool override})`
+- `unregister()`
+- `clear()`
+- `hasBuilder`
+
+**Example:**
+
+```dart
+SDUISubmitButtonRegistry.instance.register(
+  (context, submitContext) {
+    return ElevatedButton.icon(
+      onPressed: submitContext.submitForm,
+      icon: const Icon(Icons.send),
+      label: const Text('Submit form'),
+    );
+  },
+  override: true,
+);
+```
 
 **Example:**
 

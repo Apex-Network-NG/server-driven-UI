@@ -46,8 +46,8 @@ class _SDUIFieldRendererState extends State<SDUIFieldRenderer> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final fieldType = SDUIFieldType.fromValue(widget.field.type);
-    final useDefaultLoadingOverlay =
-        !SDUIWidgetRegistry.instance.isLoadingAwareRegistered(fieldType);
+    final useDefaultLoadingOverlay = !SDUIWidgetRegistry.instance
+        .isLoadingAwareRegistered(fieldType);
 
     final fieldContent = Stack(
       children: [
@@ -70,6 +70,13 @@ class _SDUIFieldRendererState extends State<SDUIFieldRenderer> {
           ),
       ],
     );
+
+    final isHidden = widget.formManager.isHidden(
+      widget.field.key,
+      fallback: widget.field.hiddenField,
+    );
+
+    if (isHidden) return const SizedBox.shrink();
 
     return ListenableBuilder(
       listenable: widget.formManager,

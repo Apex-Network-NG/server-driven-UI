@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:sdui/src/config/autofill/autofill_api_config.dart';
 import 'package:sdui/src/config/country/country_form.dart';
 import 'package:sdui/src/config/options/options_ui_registry.dart';
+import 'package:sdui/src/config/submit_button/submit_button_registry.dart';
 import 'package:sdui/src/core/service/dio_service.dart';
 import 'package:sdui/src/renderer/field_renderer.dart';
 import 'package:sdui/src/util/data_enhance.dart';
@@ -395,7 +396,9 @@ class _SDUIRendererState extends State<SDUIRenderer> {
 
     for (final field in _fieldIndex.values) {
       final autofill = field.autofill;
-      if (autofill == null || autofill.enabled != true || autofill.map.isEmpty) {
+      if (autofill == null ||
+          autofill.enabled != true ||
+          autofill.map.isEmpty) {
         continue;
       }
 
@@ -1281,8 +1284,9 @@ class _SDUIRendererState extends State<SDUIRenderer> {
             builder: (context, _) {
               return PageView.builder(
                 controller: _pageController,
-                onPageChanged: (index) =>
-                    setState(() => _currentPageIndex = index),
+                onPageChanged: (index) {
+                  setState(() => _currentPageIndex = index);
+                },
                 itemCount: pages.length,
                 itemBuilder: (context, pageIndex) {
                   final page = pages[pageIndex];
@@ -1316,6 +1320,7 @@ class _SDUIRendererState extends State<SDUIRenderer> {
 
     // Default navigation buttons
     final isLastPage = _currentPageIndex == widget.form.form.pages.length - 1;
+    final submitButtonBuilder = SDUISubmitButtonRegistry.instance.builder;
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -1334,10 +1339,21 @@ class _SDUIRendererState extends State<SDUIRenderer> {
             ),
           if (_currentPageIndex > 0) const SizedBox(width: 16),
           Expanded(
-            child: ElevatedButton(
-              onPressed: isLastPage ? _submitForm : _nextPage,
-              child: Text(isLastPage ? 'Submit' : 'Next'),
-            ),
+            child: isLastPage && submitButtonBuilder != null
+                ? submitButtonBuilder(
+                    context,
+                    SDUISubmitButtonContext(
+                      form: widget.form,
+                      formManager: widget.formManager,
+                      currentPage: _currentPageIndex,
+                      totalPages: widget.form.form.pages.length,
+                      submitForm: _submitForm,
+                    ),
+                  )
+                : ElevatedButton(
+                    onPressed: isLastPage ? _submitForm : _nextPage,
+                    child: Text(isLastPage ? 'Submit' : 'Next'),
+                  ),
           ),
         ],
       ),

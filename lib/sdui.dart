@@ -26,3 +26,4 @@ export 'src/config/country/country.dart';
 export 'src/config/country/country_code.dart';
 export 'src/config/country/country_service.dart';
 export 'src/config/options/options_ui_registry.dart';
+export 'src/config/submit_button/submit_button_registry.dart';
