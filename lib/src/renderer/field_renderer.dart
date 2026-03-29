@@ -44,43 +44,40 @@ class _SDUIFieldRendererState extends State<SDUIFieldRenderer> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final fieldType = SDUIFieldType.fromValue(widget.field.type);
-    final useDefaultLoadingOverlay = !SDUIWidgetRegistry.instance
-        .isLoadingAwareRegistered(fieldType);
-
-    final fieldContent = Stack(
-      children: [
-        AbsorbPointer(
-          absorbing: widget.isAutofillLoading && useDefaultLoadingOverlay,
-          child: _buildFieldWidget(),
-        ),
-        if (widget.isAutofillLoading && useDefaultLoadingOverlay)
-          Positioned.fill(
-            child: Container(
-              color: theme.colorScheme.surface.withValues(alpha: 0.8),
-              child: const Center(
-                child: SizedBox(
-                  width: 16,
-                  height: 16,
-                  child: CircularProgressIndicator(strokeWidth: 3),
-                ),
-              ),
-            ),
-          ),
-      ],
-    );
-
-    final isHidden = widget.formManager.isHidden(
-      widget.field.key,
-      fallback: widget.field.hiddenField,
-    );
-
-    if (isHidden) return const SizedBox.shrink();
-
     return ListenableBuilder(
       listenable: widget.formManager,
       builder: (context, _) {
+        final theme = Theme.of(context);
+        final fieldType = SDUIFieldType.fromValue(widget.field.type);
+        final useDefaultLoadingOverlay = !SDUIWidgetRegistry.instance
+            .isLoadingAwareRegistered(fieldType);
+        final isHidden = widget.formManager.isHidden(
+          widget.field.key,
+          fallback: widget.field.hiddenField,
+        );
+        if (isHidden) return const SizedBox.shrink();
+
+        final fieldContent = Stack(
+          children: [
+            AbsorbPointer(
+              absorbing: widget.isAutofillLoading && useDefaultLoadingOverlay,
+              child: _buildFieldWidget(),
+            ),
+            if (widget.isAutofillLoading && useDefaultLoadingOverlay)
+              Positioned.fill(
+                child: Container(
+                  color: theme.colorScheme.surface.withValues(alpha: 0.8),
+                  child: const Center(
+                    child: SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 3),
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        );
         final validatedText = widget.formManager.getValidatedText(
           widget.field.key,
         );
