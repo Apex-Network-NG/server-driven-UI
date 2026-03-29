@@ -287,7 +287,7 @@ class SDUIField {
       label: json['label'],
       placeholder: json['placeholder'],
       helpText: json['help_text'],
-      defaultValue: json['default'],
+      defaultValue: json['default'] ?? json['value'],
       type: json['type'],
       visibleIf: json['visible_if'] != null
           ? SDUIVisibleIf.fromJson(json['visible_if'])
