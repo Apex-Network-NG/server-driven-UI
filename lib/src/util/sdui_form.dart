@@ -38,7 +38,11 @@ class SDUIForm {
     final name = dataGet(json, 'name', defaultValue: null);
     final key = dataGet(json, 'key', defaultValue: null);
     final description = dataGet(json, 'description', defaultValue: null);
-    final pages = dataGet(json, 'form.pages', defaultValue: null);
+    final pages = dataGet(
+      json,
+      'form.pages',
+      defaultValue: dataGet(json, 'pages', defaultValue: null),
+    );
     final meta = dataGet(json, 'meta', defaultValue: null);
 
     return SDUIForm(
@@ -293,7 +297,11 @@ class SDUIField {
           ? SDUIVisibleIf.fromJson(json['visible_if'])
           : null,
       readonly: json['readonly'] ?? false,
-      hiddenField: (json['hidden_field'] ?? json['hidden'] ?? false) as bool,
+      hiddenField:
+          (json['hidden_field'] ??
+                  (json['type'] == 'hidden' ? true : json['hidden']) ??
+                  false)
+              as bool,
       required: json['required'] ?? false,
       ui: json['ui'] != null ? SDUIFieldUi.fromJson(json['ui']) : null,
       autofill: json['autofill'] is Map<String, dynamic>

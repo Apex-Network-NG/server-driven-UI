@@ -16,6 +16,22 @@ import 'package:sdui/src/util/mask_input_formatter.dart';
 import 'package:sdui/src/util/sdui_form.dart';
 import 'package:sdui/src/util/sdui_form_manager.dart';
 
+class _RemoteErrorEnvelope {
+  final String? message;
+  final String? code;
+  final Map<String, List<String>> fieldErrors;
+  final List<String> formErrors;
+
+  const _RemoteErrorEnvelope({
+    required this.message,
+    required this.code,
+    required this.fieldErrors,
+    required this.formErrors,
+  });
+
+  bool get hasMappedErrors => fieldErrors.isNotEmpty || formErrors.isNotEmpty;
+}
+
 class SDUIRenderer extends StatefulWidget {
   final SDUIForm form;
   final FormManager formManager;
@@ -263,6 +279,13 @@ class _SDUIRendererState extends State<SDUIRenderer> {
         }
         break;
 
+      case 'hidden':
+        final hiddenValue = value?.toString();
+        if (hiddenValue != null && hiddenValue.isNotEmpty) {
+          widget.formManager.setFieldValue(field.key, hiddenValue);
+        }
+        break;
+
       case 'date':
       case 'datetime':
         final dateValue = _toDateTime(value);
@@ -349,6 +372,8 @@ class _SDUIRendererState extends State<SDUIRenderer> {
 
   void _onFieldChanged(String key, dynamic value) {
     widget.formManager.setFieldValue(key, value);
+    widget.formManager.clearAutofillError(key);
+    widget.formManager.clearFormErrors();
     _invalidateValidationResponsesForDependency(key);
     _evaluateConditionalsForChangedField(key);
     _handleAutofillForChangedField(key);
@@ -589,6 +614,18 @@ class _SDUIRendererState extends State<SDUIRenderer> {
     }
   }
 
+  void _clearAutofillTargets(SDUIField field, SDUIAutofill autofill) {
+    for (final mapping in autofill.map) {
+      final targetKey = mapping.target.trim();
+      if (targetKey.isEmpty || targetKey == field.key) continue;
+
+      final targetField = _fieldIndex[targetKey];
+      if (targetField == null) continue;
+      _clearFieldValue(targetField);
+      _evaluateConditionalsForChangedField(targetField.key);
+    }
+  }
+
   void _clearDependentAutofillTargetsIfSourceHasError(String sourceKey) {
     if (!mounted) return;
     if (!widget.formManager.hasError(sourceKey)) return;
@@ -783,6 +820,8 @@ class _SDUIRendererState extends State<SDUIRenderer> {
     _autofillCancelTokens[requestKey] = cancelToken;
     final requestId = ++_autofillRequestSequence;
     _autofillRequestIds[field.key] = requestId;
+    widget.formManager.clearAutofillError(field.key);
+    widget.formManager.clearFormErrors();
     _setAutofillLoading(field.key, true);
 
     try {
@@ -791,11 +830,30 @@ class _SDUIRendererState extends State<SDUIRenderer> {
       _applyAutofillMappings(autofill, responseData);
     } on DioException catch (e) {
       if (e.type == DioExceptionType.cancel) return;
+      _clearAutofillTargets(field, autofill);
+      _applyRemoteErrorEnvelope(
+        ownerField: field,
+        envelope: _parseRemoteErrorEnvelope(e.response?.data),
+        isValidationResponse: false,
+        fallbackMessage: 'Unable to autofill ${field.label.toLowerCase()}',
+      );
       Logger.logError(
         'Autofill request failed for ${field.key}: ${e.message}',
         tag: 'Autofill',
       );
     } catch (e) {
+      _clearAutofillTargets(field, autofill);
+      _applyRemoteErrorEnvelope(
+        ownerField: field,
+        envelope: const _RemoteErrorEnvelope(
+          message: null,
+          code: null,
+          fieldErrors: {},
+          formErrors: [],
+        ),
+        isValidationResponse: false,
+        fallbackMessage: 'Unable to autofill ${field.label.toLowerCase()}',
+      );
       Logger.logError('Autofill failed for ${field.key}: $e', tag: 'Autofill');
     } finally {
       if (_autofillRequestIds[field.key] == requestId) {
@@ -829,6 +887,7 @@ class _SDUIRendererState extends State<SDUIRenderer> {
     _validationResponseRequestIds[field.key] = requestId;
     widget.formManager.clearValidationResponseError(field.key);
     widget.formManager.setValidatedText(field.key, null);
+    widget.formManager.clearFormErrors();
     _setValidationResponseLoading(field.key, true);
 
     try {
@@ -839,11 +898,7 @@ class _SDUIRendererState extends State<SDUIRenderer> {
       if (responseData == null) return;
       if (_validationResponseRequestIds[field.key] != requestId) return;
 
-      _applyMappedFields(
-        validationResponse.map,
-        responseData,
-        overwrite: true,
-      );
+      _applyMappedFields(validationResponse.map, responseData, overwrite: true);
       widget.formManager.setValidatedText(
         field.key,
         validationResponse.validatedText,
@@ -851,9 +906,11 @@ class _SDUIRendererState extends State<SDUIRenderer> {
     } on DioException catch (e) {
       if (e.type == DioExceptionType.cancel) return;
       widget.formManager.setValidatedText(field.key, null);
-      widget.formManager.setValidationResponseError(
-        field.key,
-        _resolveValidationResponseErrorMessage(field, e),
+      _applyRemoteErrorEnvelope(
+        ownerField: field,
+        envelope: _parseRemoteErrorEnvelope(e.response?.data),
+        isValidationResponse: true,
+        fallbackMessage: 'Unable to validate ${field.label.toLowerCase()}',
       );
       _clearValidationResponseTargets(field, validationResponse);
       Logger.logError(
@@ -862,9 +919,16 @@ class _SDUIRendererState extends State<SDUIRenderer> {
       );
     } catch (e) {
       widget.formManager.setValidatedText(field.key, null);
-      widget.formManager.setValidationResponseError(
-        field.key,
-        'Unable to validate ${field.label.toLowerCase()}',
+      _applyRemoteErrorEnvelope(
+        ownerField: field,
+        envelope: const _RemoteErrorEnvelope(
+          message: null,
+          code: null,
+          fieldErrors: {},
+          formErrors: [],
+        ),
+        isValidationResponse: true,
+        fallbackMessage: 'Unable to validate ${field.label.toLowerCase()}',
       );
       _clearValidationResponseTargets(field, validationResponse);
       Logger.logError(
@@ -1018,6 +1082,126 @@ class _SDUIRendererState extends State<SDUIRenderer> {
         : '${baseUrl.trim()}/';
     final normalizedEndpoint = trimmed.replaceFirst(RegExp(r'^/+'), '');
     return Uri.parse(normalizedBase).resolve(normalizedEndpoint).toString();
+  }
+
+  _RemoteErrorEnvelope _parseRemoteErrorEnvelope(dynamic responseData) {
+    final normalized = _normalizeRemoteErrorBody(responseData);
+    if (normalized is! Map) {
+      final message = normalized?.toString().trim();
+      return _RemoteErrorEnvelope(
+        message: message == null || message.isEmpty ? null : message,
+        code: null,
+        fieldErrors: const {},
+        formErrors: const [],
+      );
+    }
+
+    final map = Map<String, dynamic>.from(
+      normalized.map((key, value) => MapEntry(key.toString(), value)),
+    );
+    final fieldErrors = <String, List<String>>{};
+    final formErrors = <String>[];
+    final rawErrors = map['errors'];
+
+    if (rawErrors is Map) {
+      rawErrors.forEach((key, value) {
+        final normalizedKey = key.toString().trim();
+        if (normalizedKey.isEmpty) return;
+
+        final messages = _normalizeRemoteErrorMessages(value);
+        if (messages.isEmpty) return;
+
+        if (normalizedKey == '_form') {
+          formErrors.addAll(messages);
+        } else {
+          fieldErrors[normalizedKey] = messages;
+        }
+      });
+    }
+
+    final message = map['message']?.toString().trim();
+    final code = map['code']?.toString().trim();
+    return _RemoteErrorEnvelope(
+      message: message == null || message.isEmpty ? null : message,
+      code: code == null || code.isEmpty ? null : code,
+      fieldErrors: fieldErrors,
+      formErrors: formErrors,
+    );
+  }
+
+  dynamic _normalizeRemoteErrorBody(dynamic responseData) {
+    if (responseData is! String) return responseData;
+    final trimmed = responseData.trim();
+    if (trimmed.isEmpty) return responseData;
+
+    try {
+      return jsonDecode(trimmed);
+    } catch (_) {
+      return responseData;
+    }
+  }
+
+  List<String> _normalizeRemoteErrorMessages(dynamic value) {
+    if (value is List) {
+      return value
+          .map((entry) => entry?.toString().trim() ?? '')
+          .where((entry) => entry.isNotEmpty)
+          .toList();
+    }
+
+    final text = value?.toString().trim();
+    if (text == null || text.isEmpty) return const [];
+    return [text];
+  }
+
+  String? _primaryRemoteError(List<String> messages) {
+    for (final message in messages) {
+      final trimmed = message.trim();
+      if (trimmed.isNotEmpty) return trimmed;
+    }
+    return null;
+  }
+
+  void _applyRemoteErrorEnvelope({
+    required SDUIField ownerField,
+    required _RemoteErrorEnvelope envelope,
+    required bool isValidationResponse,
+    String? fallbackMessage,
+  }) {
+    if (envelope.formErrors.isNotEmpty) {
+      widget.formManager.setFormErrors(envelope.formErrors);
+    } else {
+      widget.formManager.clearFormErrors();
+    }
+
+    var appliedFieldError = false;
+    for (final entry in envelope.fieldErrors.entries) {
+      final fieldKey = entry.key.trim();
+      if (!_fieldIndex.containsKey(fieldKey)) continue;
+
+      final message = _primaryRemoteError(entry.value);
+      if (message == null) continue;
+
+      if (isValidationResponse) {
+        widget.formManager.setValidationResponseError(fieldKey, message);
+      } else {
+        widget.formManager.setAutofillError(fieldKey, message);
+      }
+      appliedFieldError = true;
+    }
+
+    if (appliedFieldError || envelope.formErrors.isNotEmpty) return;
+
+    final message = envelope.message?.trim().isNotEmpty == true
+        ? envelope.message!.trim()
+        : fallbackMessage;
+    if (message == null || message.trim().isEmpty) return;
+
+    if (isValidationResponse) {
+      widget.formManager.setValidationResponseError(ownerField.key, message);
+    } else {
+      widget.formManager.setAutofillError(ownerField.key, message);
+    }
   }
 
   bool _autofillConditionsMet(SDUIAutofill autofill) {
@@ -1200,26 +1384,6 @@ class _SDUIRendererState extends State<SDUIRenderer> {
       _applyAutofillToField(targetField, value, overwrite: overwrite);
       _evaluateConditionalsForChangedField(targetField.key);
     }
-  }
-
-  String _resolveValidationResponseErrorMessage(
-    SDUIField field,
-    DioException error,
-  ) {
-    final responseData = error.response?.data;
-    final candidates = <dynamic>[
-      responseData is Map ? responseData['message'] : null,
-      responseData is Map ? responseData['error'] : null,
-      responseData is Map ? responseData['detail'] : null,
-      responseData is String ? responseData : null,
-    ];
-
-    for (final candidate in candidates) {
-      final text = candidate?.toString().trim();
-      if (text != null && text.isNotEmpty) return text;
-    }
-
-    return 'Unable to validate ${field.label.toLowerCase()}';
   }
 
   void _applyAutofillToField(
@@ -1630,10 +1794,14 @@ class _SDUIRendererState extends State<SDUIRenderer> {
   }
 
   Map<String, dynamic> _buildSubmissionData() {
-    final formData = Map<String, dynamic>.from(widget.formManager.getAllFormData());
+    final formData = <String, dynamic>{};
 
     for (final field in _fieldIndex.values) {
-      if (!_isEmpty(formData[field.key])) continue;
+      final currentValue = _currentSubmissionValue(field);
+      if (!_isEmpty(currentValue)) {
+        formData[field.key] = currentValue;
+        continue;
+      }
 
       final resolvedDefault = _resolveDefaultValue(field);
       if (resolvedDefault == null) continue;
@@ -1647,6 +1815,78 @@ class _SDUIRendererState extends State<SDUIRenderer> {
     }
 
     return formData;
+  }
+
+  dynamic _currentSubmissionValue(SDUIField field) {
+    switch (field.type) {
+      case 'short-text':
+      case 'medium-text':
+      case 'long-text':
+      case 'text':
+      case 'email':
+      case 'url':
+      case 'password':
+      case 'phone':
+        final value = widget.formManager.getFieldValue(field.key);
+        if (!_isEmpty(value)) return value.toString();
+        final text = _getTextFieldValue(field);
+        return text.trim().isEmpty ? null : text;
+
+      case 'number':
+        final value = widget.formManager.getFieldValue(field.key);
+        if (!_isEmpty(value)) return value;
+        final text = _getTextFieldValue(field).trim();
+        if (text.isEmpty) return null;
+        return num.tryParse(text) ?? text;
+
+      case 'boolean':
+        if (widget.formManager.booleanValues.containsKey(field.key)) {
+          return widget.formManager.getBooleanValue(field.key);
+        }
+        return widget.formManager.getFieldValue(field.key);
+
+      case 'country':
+        final countryCode = widget.formManager
+            .getSelectedCountry(field.key)
+            ?.countryCode;
+        if (countryCode != null && countryCode.trim().isNotEmpty) {
+          return countryCode;
+        }
+        return widget.formManager.getFieldValue(field.key);
+
+      case 'options':
+        final selected = widget.formManager.getSelectedOption(field.key);
+        if (selected != null && selected.isNotEmpty) {
+          return _normalizeOptionsFieldValue(field, selected);
+        }
+        return widget.formManager.getFieldValue(field.key);
+
+      case 'date':
+        return widget.formManager.getDateValue(field.key) ??
+            widget.formManager.getFieldValue(field.key);
+
+      case 'datetime':
+        return widget.formManager.getDateTimeValue(field.key) ??
+            widget.formManager.getFieldValue(field.key);
+
+      case 'tag':
+        final tags = widget.formManager.getTagValues(field.key);
+        if (tags.isNotEmpty) return tags;
+        return widget.formManager.getFieldValue(field.key);
+
+      case 'file':
+      case 'image':
+      case 'video':
+      case 'document':
+        return widget.formManager.getFileValue(field.key) ??
+            widget.formManager.getFieldValue(field.key);
+
+      case 'hidden':
+        return widget.formManager.getFieldValue(field.key);
+
+      default:
+        return widget.formManager.getFieldValue(field.key);
+    }
   }
 
   dynamic _normalizeSubmissionFallbackValue(SDUIField field, Object? value) {
@@ -1673,6 +1913,10 @@ class _SDUIRendererState extends State<SDUIRenderer> {
       case 'country':
         final countryValue = value.toString();
         return countryValue.isEmpty ? null : countryValue;
+
+      case 'hidden':
+        final hiddenValue = value.toString();
+        return hiddenValue.isEmpty ? null : hiddenValue;
 
       case 'options':
         final options = _toStringList(value);
@@ -1705,6 +1949,7 @@ class _SDUIRendererState extends State<SDUIRenderer> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     final pages = _visiblePages;
 
     if (_currentPageIndex >= pages.length && pages.isNotEmpty) {
@@ -1717,6 +1962,31 @@ class _SDUIRendererState extends State<SDUIRenderer> {
     }
     return Column(
       children: [
+        ListenableBuilder(
+          listenable: widget.formManager,
+          builder: (context, _) {
+            final formErrors = widget.formManager.getFormErrors();
+            if (formErrors.isEmpty) return const SizedBox.shrink();
+
+            return Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.errorContainer,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  formErrors.join('\n'),
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onErrorContainer,
+                  ),
+                ),
+              ),
+            );
+          },
+        ),
         Expanded(
           child: ListenableBuilder(
             listenable: Listenable.merge([_pageController, widget.formManager]),

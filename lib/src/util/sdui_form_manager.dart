@@ -7,6 +7,7 @@ class FormManager extends ChangeNotifier {
   final Map<String, TextEditingController> controllers = {};
   final Map<String, FocusNode> focusNodes = {};
   final Map<String, String?> errorMessages = {};
+  final Map<String, String?> autofillErrors = {};
   final Map<String, String?> validationResponseErrors = {};
   final Map<String, String?> validatedTexts = {};
   final Map<String, CountryForm?> selectedCountries = {};
@@ -18,6 +19,7 @@ class FormManager extends ChangeNotifier {
   final Map<String, List<String>> tagValues = {};
   final Map<String, String?> fileValues = {};
   final Map<String, bool> _hiddenByKey = {};
+  final List<String> _formErrors = [];
 
   /// Updates the selected country for a specific field
   ///
@@ -87,7 +89,24 @@ class FormManager extends ChangeNotifier {
   /// Returns:
   /// - [String?]: The error message for the field, or null if no error is set
   String? getError(String key) {
-    return errorMessages[key] ?? validationResponseErrors[key];
+    return errorMessages[key] ??
+        autofillErrors[key] ??
+        validationResponseErrors[key];
+  }
+
+  void setAutofillError(String key, String? error) {
+    if (error == null || error.trim().isEmpty) {
+      autofillErrors.remove(key);
+    } else {
+      autofillErrors[key] = error;
+    }
+    notifyListeners();
+  }
+
+  void clearAutofillError(String key) {
+    if (!autofillErrors.containsKey(key)) return;
+    autofillErrors.remove(key);
+    notifyListeners();
   }
 
   void setValidationResponseError(String key, String? error) {
@@ -116,6 +135,30 @@ class FormManager extends ChangeNotifier {
 
   String? getValidatedText(String key) {
     return validatedTexts[key];
+  }
+
+  void setFormErrors(List<String> errors) {
+    _formErrors
+      ..clear()
+      ..addAll(
+        errors.map((error) => error.trim()).where((error) => error.isNotEmpty),
+      );
+    notifyListeners();
+  }
+
+  List<String> getFormErrors() {
+    return List.unmodifiable(_formErrors);
+  }
+
+  String? getFormError() {
+    if (_formErrors.isEmpty) return null;
+    return _formErrors.first;
+  }
+
+  void clearFormErrors() {
+    if (_formErrors.isEmpty) return;
+    _formErrors.clear();
+    notifyListeners();
   }
 
   /// Sets a field value for a specific form field
@@ -399,6 +442,8 @@ class FormManager extends ChangeNotifier {
   bool hasError(String key) {
     final local = errorMessages[key];
     if (local != null && local.isNotEmpty) return true;
+    final autofill = autofillErrors[key];
+    if (autofill != null && autofill.isNotEmpty) return true;
     final remote = validationResponseErrors[key];
     return remote != null && remote.isNotEmpty;
   }
@@ -410,7 +455,13 @@ class FormManager extends ChangeNotifier {
   ///
   /// Returns:
   /// - [bool]: True if any field has an error, false if no errors exist
-  bool get hasErrors => errorMessages.isNotEmpty;
+  bool get hasErrors =>
+      errorMessages.values.any((error) => error?.isNotEmpty == true) ||
+      autofillErrors.values.any((error) => error?.isNotEmpty == true) ||
+      validationResponseErrors.values.any(
+        (error) => error?.isNotEmpty == true,
+      ) ||
+      _formErrors.isNotEmpty;
 
   /// Clears the error message for a specific form field
   ///
@@ -422,6 +473,7 @@ class FormManager extends ChangeNotifier {
   /// - [key]: The unique identifier for the form field
   void clearError(String key) {
     errorMessages.remove(key);
+    autofillErrors.remove(key);
     validationResponseErrors.remove(key);
     notifyListeners();
   }
@@ -433,7 +485,9 @@ class FormManager extends ChangeNotifier {
   /// will be notified of the change.
   void clearAllErrors() {
     errorMessages.clear();
+    autofillErrors.clear();
     validationResponseErrors.clear();
+    _formErrors.clear();
     notifyListeners();
   }
 
