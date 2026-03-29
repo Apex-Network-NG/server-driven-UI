@@ -249,6 +249,7 @@ class SDUIField {
   final bool required;
   final SDUIFieldUi? ui;
   final SDUIAutofill? autofill;
+  final SDUIValidationResponse? validationResponse;
   final SDUIConstraints? constraints;
   final List<SDUIValidation>? validations;
   final SDUIOptionProperties? optionProperties;
@@ -268,6 +269,7 @@ class SDUIField {
     required this.required,
     this.ui,
     this.autofill,
+    this.validationResponse,
     this.constraints,
     this.validations,
     this.optionProperties,
@@ -296,6 +298,11 @@ class SDUIField {
       ui: json['ui'] != null ? SDUIFieldUi.fromJson(json['ui']) : null,
       autofill: json['autofill'] is Map<String, dynamic>
           ? SDUIAutofill.fromJson(Map<String, dynamic>.from(json['autofill']))
+          : null,
+      validationResponse: json['validation_response'] is Map<String, dynamic>
+          ? SDUIValidationResponse.fromJson(
+              Map<String, dynamic>.from(json['validation_response']),
+            )
           : null,
       constraints: (constraints != null && constraintType != List<dynamic>)
           ? SDUIConstraints.fromJson(constraints)
@@ -400,6 +407,83 @@ class SDUIAutofill {
       endpoint: json['endpoint']?.toString() ?? '',
       overwrite: (json['overwrite'] ?? 'empty').toString(),
       debounceMs: parsedDebounce > 0 ? parsedDebounce : 500,
+    );
+  }
+}
+
+class SDUIValidationResponseHeader {
+  final String key;
+  final String value;
+
+  const SDUIValidationResponseHeader({required this.key, required this.value});
+
+  factory SDUIValidationResponseHeader.fromJson(Map<String, dynamic> json) {
+    return SDUIValidationResponseHeader(
+      key: json['key']?.toString() ?? '',
+      value: json['value']?.toString() ?? '',
+    );
+  }
+}
+
+class SDUIValidationResponse {
+  final bool enabled;
+  final String trigger;
+  final String endpoint;
+  final String method;
+  final List<SDUIValidationResponseHeader> headers;
+  final List<SDUIAutofillParam> params;
+  final List<SDUIAutofillMap> map;
+  final String? validatedText;
+  final SDUIAutofillWhen? when;
+
+  const SDUIValidationResponse({
+    required this.enabled,
+    required this.trigger,
+    required this.endpoint,
+    required this.method,
+    required this.headers,
+    required this.params,
+    required this.map,
+    this.validatedText,
+    this.when,
+  });
+
+  factory SDUIValidationResponse.fromJson(Map<String, dynamic> json) {
+    return SDUIValidationResponse(
+      enabled: json['enabled'] ?? true,
+      trigger: (json['trigger'] ?? 'on_valid').toString().trim().toLowerCase(),
+      endpoint: json['endpoint']?.toString() ?? '',
+      method: (json['method'] ?? 'POST').toString(),
+      headers:
+          (json['headers'] as List<dynamic>?)
+              ?.whereType<Map>()
+              .map(
+                (e) => SDUIValidationResponseHeader.fromJson(
+                  Map<String, dynamic>.from(e),
+                ),
+              )
+              .toList() ??
+          const [],
+      params:
+          (json['params'] as List<dynamic>?)
+              ?.whereType<Map>()
+              .map(
+                (e) => SDUIAutofillParam.fromJson(Map<String, dynamic>.from(e)),
+              )
+              .toList() ??
+          const [],
+      map:
+          (json['map'] as List<dynamic>?)
+              ?.whereType<Map>()
+              .map(
+                (e) => SDUIAutofillMap.fromJson(Map<String, dynamic>.from(e)),
+              )
+              .toList() ??
+          const [],
+      validatedText: json['validated_text']?.toString(),
+      when: json['when'] is Map<String, dynamic>
+          ? SDUIAutofillWhen.fromJson(Map<String, dynamic>.from(json['when']))
+          : null,
     );
   }
 }

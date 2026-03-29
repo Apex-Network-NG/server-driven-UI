@@ -7,6 +7,7 @@ class SDUISubmitButtonContext {
   final FormManager formManager;
   final int currentPage;
   final int totalPages;
+  final bool isFormValid;
   final VoidCallback submitForm;
 
   const SDUISubmitButtonContext({
@@ -14,6 +15,7 @@ class SDUISubmitButtonContext {
     required this.formManager,
     required this.currentPage,
     required this.totalPages,
+    required this.isFormValid,
     required this.submitForm,
   });
 }

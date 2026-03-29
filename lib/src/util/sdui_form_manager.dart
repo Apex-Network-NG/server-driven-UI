@@ -7,6 +7,8 @@ class FormManager extends ChangeNotifier {
   final Map<String, TextEditingController> controllers = {};
   final Map<String, FocusNode> focusNodes = {};
   final Map<String, String?> errorMessages = {};
+  final Map<String, String?> validationResponseErrors = {};
+  final Map<String, String?> validatedTexts = {};
   final Map<String, CountryForm?> selectedCountries = {};
   final Map<String, dynamic> fieldValues = {};
   final Map<String, bool> booleanValues = {};
@@ -85,7 +87,35 @@ class FormManager extends ChangeNotifier {
   /// Returns:
   /// - [String?]: The error message for the field, or null if no error is set
   String? getError(String key) {
-    return errorMessages[key];
+    return errorMessages[key] ?? validationResponseErrors[key];
+  }
+
+  void setValidationResponseError(String key, String? error) {
+    if (error == null || error.trim().isEmpty) {
+      validationResponseErrors.remove(key);
+    } else {
+      validationResponseErrors[key] = error;
+    }
+    notifyListeners();
+  }
+
+  void clearValidationResponseError(String key) {
+    if (!validationResponseErrors.containsKey(key)) return;
+    validationResponseErrors.remove(key);
+    notifyListeners();
+  }
+
+  void setValidatedText(String key, String? text) {
+    if (text == null || text.trim().isEmpty) {
+      validatedTexts.remove(key);
+    } else {
+      validatedTexts[key] = text;
+    }
+    notifyListeners();
+  }
+
+  String? getValidatedText(String key) {
+    return validatedTexts[key];
   }
 
   /// Sets a field value for a specific form field
@@ -367,7 +397,10 @@ class FormManager extends ChangeNotifier {
   /// Returns:
   /// - [bool]: True if the field has an error, false otherwise
   bool hasError(String key) {
-    return errorMessages[key] != null && errorMessages[key]!.isNotEmpty;
+    final local = errorMessages[key];
+    if (local != null && local.isNotEmpty) return true;
+    final remote = validationResponseErrors[key];
+    return remote != null && remote.isNotEmpty;
   }
 
   /// Checks if the form has any errors across all fields
@@ -389,6 +422,7 @@ class FormManager extends ChangeNotifier {
   /// - [key]: The unique identifier for the form field
   void clearError(String key) {
     errorMessages.remove(key);
+    validationResponseErrors.remove(key);
     notifyListeners();
   }
 
@@ -399,6 +433,7 @@ class FormManager extends ChangeNotifier {
   /// will be notified of the change.
   void clearAllErrors() {
     errorMessages.clear();
+    validationResponseErrors.clear();
     notifyListeners();
   }
 

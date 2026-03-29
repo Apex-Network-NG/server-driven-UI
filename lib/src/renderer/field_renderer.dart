@@ -81,12 +81,27 @@ class _SDUIFieldRendererState extends State<SDUIFieldRenderer> {
     return ListenableBuilder(
       listenable: widget.formManager,
       builder: (context, _) {
+        final validatedText = widget.formManager.getValidatedText(
+          widget.field.key,
+        );
+        final hasError = widget.formManager.hasError(widget.field.key);
+
         return Container(
           padding: const EdgeInsets.only(bottom: 16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               fieldContent,
+              if (!hasError && validatedText != null) ...[
+                const SizedBox(height: 4),
+                Text(
+                  validatedText,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    fontSize: 12,
+                    color: theme.colorScheme.primary,
+                  ),
+                ),
+              ],
               if (widget.onAutofillRequested != null) ...[
                 const SizedBox(height: 6),
                 Align(
@@ -104,7 +119,7 @@ class _SDUIFieldRendererState extends State<SDUIFieldRenderer> {
                   ),
                 ),
               ],
-              if (widget.formManager.hasError(widget.field.key) &&
+              if (hasError &&
                   allowedTypesGeneralError.contains(widget.field.type)) ...[
                 const SizedBox(height: 4),
                 Text(

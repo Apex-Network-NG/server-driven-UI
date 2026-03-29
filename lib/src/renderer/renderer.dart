@@ -51,12 +51,18 @@ class _SDUIRendererState extends State<SDUIRenderer> {
   int _currentPageIndex = 0;
   late final Map<String, SDUIField> _fieldIndex;
   late final Map<String, Set<String>> _autofillTargetsByDependencyKey;
+  late final Map<String, Set<String>> _validationResponseFieldsByDependencyKey;
   final Map<String, Object?> _resolvedDefaults = {};
   final Map<String, Timer> _autofillTimers = {};
   final Map<String, CancelToken> _autofillCancelTokens = {};
   final Map<String, int> _autofillRequestIds = {};
   final Set<String> _autofillLoading = {};
+  final Map<String, CancelToken> _validationResponseCancelTokens = {};
+  final Map<String, int> _validationResponseRequestIds = {};
+  final Set<String> _validationResponseLoading = {};
+  final Map<String, VoidCallback> _validationResponseBlurListeners = {};
   int _autofillRequestSequence = 0;
+  int _validationResponseRequestSequence = 0;
 
   String _visKey(String type, String key) {
     // avoid collisions between field keys and section/page keys
@@ -97,6 +103,19 @@ class _SDUIRendererState extends State<SDUIRenderer> {
     _autofillCancelTokens.clear();
     _autofillRequestIds.clear();
     _autofillLoading.clear();
+
+    for (final token in _validationResponseCancelTokens.values) {
+      token.cancel();
+    }
+    _validationResponseCancelTokens.clear();
+    _validationResponseRequestIds.clear();
+    _validationResponseLoading.clear();
+
+    for (final entry in _validationResponseBlurListeners.entries) {
+      final focusNode = widget.formManager.focusNodes[entry.key];
+      focusNode?.removeListener(entry.value);
+    }
+    _validationResponseBlurListeners.clear();
   }
 
   void _initializeFormFields() {
@@ -117,6 +136,8 @@ class _SDUIRendererState extends State<SDUIRenderer> {
       }
     }
     _autofillTargetsByDependencyKey = _buildAutofillTargetIndex();
+    _validationResponseFieldsByDependencyKey =
+        _buildValidationResponseFieldIndex();
 
     for (final field in _fieldIndex.values) {
       final resolvedDefault = _resolveDefaultValue(field);
@@ -137,6 +158,8 @@ class _SDUIRendererState extends State<SDUIRenderer> {
       widget.formManager.getController(field.key);
       widget.formManager.getFocusNode(field.key);
     }
+
+    _attachValidationResponseBlurListener(field);
 
     if (field.type == 'boolean') {
       widget.formManager.setBooleanValue(field.key, false);
@@ -326,11 +349,13 @@ class _SDUIRendererState extends State<SDUIRenderer> {
 
   void _onFieldChanged(String key, dynamic value) {
     widget.formManager.setFieldValue(key, value);
+    _invalidateValidationResponsesForDependency(key);
     _evaluateConditionalsForChangedField(key);
     _handleAutofillForChangedField(key);
     widget.onFieldChanged?.call(key, value);
     scheduleMicrotask(() {
       _clearDependentAutofillTargetsIfSourceHasError(key);
+      _handleValidationResponseForChangedField(key);
     });
   }
 
@@ -352,6 +377,38 @@ class _SDUIRendererState extends State<SDUIRenderer> {
       if (!_shouldConsiderAutofill(field, autofill, changedKey)) continue;
       _scheduleAutofill(field, autofill);
     }
+  }
+
+  void _handleValidationResponseForChangedField(String changedKey) {
+    final ownerKeys = _validationResponseFieldsByDependencyKey[changedKey];
+    if (ownerKeys == null || ownerKeys.isEmpty) return;
+
+    for (final ownerKey in ownerKeys) {
+      final field = _fieldIndex[ownerKey];
+      final validationResponse = field?.validationResponse;
+      if (field == null ||
+          validationResponse == null ||
+          validationResponse.enabled != true) {
+        continue;
+      }
+      if (!_isValidationResponseOnValidTrigger(validationResponse)) continue;
+      if (_shouldExecuteValidationResponse(field, validationResponse)) {
+        _executeValidationResponse(field);
+      }
+    }
+  }
+
+  void _triggerValidationResponseForBlur(String fieldKey) {
+    final field = _fieldIndex[fieldKey];
+    final validationResponse = field?.validationResponse;
+    if (field == null ||
+        validationResponse == null ||
+        validationResponse.enabled != true) {
+      return;
+    }
+    if (!_isValidationResponseBlurTrigger(validationResponse)) return;
+    if (!_shouldExecuteValidationResponse(field, validationResponse)) return;
+    _executeValidationResponse(field);
   }
 
   bool _shouldConsiderAutofill(
@@ -391,6 +448,79 @@ class _SDUIRendererState extends State<SDUIRenderer> {
     return keys;
   }
 
+  Set<String> _validationResponseDependencyKeys(
+    SDUIField field,
+    SDUIValidationResponse validationResponse,
+  ) {
+    final keys = <String>{field.key};
+    final when = validationResponse.when;
+    if (when != null) {
+      keys.addAll(
+        when.all.map((c) => c.key).where((key) => key.trim().isNotEmpty),
+      );
+      keys.addAll(
+        when.any.map((c) => c.key).where((key) => key.trim().isNotEmpty),
+      );
+      keys.addAll(
+        when.not.map((c) => c.key).where((key) => key.trim().isNotEmpty),
+      );
+    }
+
+    for (final param in validationResponse.params) {
+      final raw = param.value;
+      if (raw is String) {
+        keys.addAll(_extractFieldKeysFromTemplate(raw));
+      }
+    }
+
+    return keys;
+  }
+
+  Map<String, Set<String>> _buildValidationResponseFieldIndex() {
+    final index = <String, Set<String>>{};
+
+    for (final field in _fieldIndex.values) {
+      final validationResponse = field.validationResponse;
+      if (validationResponse == null || validationResponse.enabled != true) {
+        continue;
+      }
+
+      final dependencyKeys = _validationResponseDependencyKeys(
+        field,
+        validationResponse,
+      );
+      for (final dependencyKey in dependencyKeys) {
+        index.putIfAbsent(dependencyKey, () => <String>{}).add(field.key);
+      }
+    }
+
+    return index;
+  }
+
+  void _attachValidationResponseBlurListener(SDUIField field) {
+    final validationResponse = field.validationResponse;
+    if (validationResponse == null || validationResponse.enabled != true) {
+      return;
+    }
+    if (!_isValidationResponseBlurTrigger(validationResponse)) return;
+
+    final focusNode = widget.formManager.getFocusNode(field.key);
+    if (_validationResponseBlurListeners.containsKey(field.key)) {
+      focusNode.removeListener(_validationResponseBlurListeners[field.key]!);
+    }
+
+    void listener() {
+      if (focusNode.hasFocus) return;
+      scheduleMicrotask(() {
+        if (!mounted) return;
+        _triggerValidationResponseForBlur(field.key);
+      });
+    }
+
+    _validationResponseBlurListeners[field.key] = listener;
+    focusNode.addListener(listener);
+  }
+
   Map<String, Set<String>> _buildAutofillTargetIndex() {
     final index = <String, Set<String>>{};
 
@@ -415,6 +545,48 @@ class _SDUIRendererState extends State<SDUIRenderer> {
     }
 
     return index;
+  }
+
+  void _invalidateValidationResponsesForDependency(String changedKey) {
+    final ownerKeys = _validationResponseFieldsByDependencyKey[changedKey];
+    if (ownerKeys == null || ownerKeys.isEmpty) return;
+
+    for (final ownerKey in ownerKeys) {
+      final field = _fieldIndex[ownerKey];
+      final validationResponse = field?.validationResponse;
+      if (field == null ||
+          validationResponse == null ||
+          validationResponse.enabled != true) {
+        continue;
+      }
+
+      _cancelValidationResponse(field.key);
+      widget.formManager.clearValidationResponseError(field.key);
+      widget.formManager.setValidatedText(field.key, null);
+      _clearValidationResponseTargets(field, validationResponse);
+    }
+  }
+
+  void _cancelValidationResponse(String fieldKey) {
+    final requestKey = 'validation_response:$fieldKey';
+    _validationResponseCancelTokens.remove(requestKey)?.cancel();
+    _validationResponseRequestIds.remove(fieldKey);
+    _setValidationResponseLoading(fieldKey, false);
+  }
+
+  void _clearValidationResponseTargets(
+    SDUIField field,
+    SDUIValidationResponse validationResponse,
+  ) {
+    for (final mapping in validationResponse.map) {
+      final targetKey = mapping.target.trim();
+      if (targetKey.isEmpty || targetKey == field.key) continue;
+
+      final targetField = _fieldIndex[targetKey];
+      if (targetField == null) continue;
+      _clearFieldValue(targetField);
+      _evaluateConditionalsForChangedField(targetField.key);
+    }
   }
 
   void _clearDependentAutofillTargetsIfSourceHasError(String sourceKey) {
@@ -453,6 +625,7 @@ class _SDUIRendererState extends State<SDUIRenderer> {
 
   void _clearFieldValue(SDUIField field) {
     widget.formManager.clearError(field.key);
+    widget.formManager.setValidatedText(field.key, null);
 
     switch (field.type) {
       case 'short-text':
@@ -543,6 +716,18 @@ class _SDUIRendererState extends State<SDUIRenderer> {
     return autofill.trigger.trim().toLowerCase() == 'manual';
   }
 
+  bool _isValidationResponseOnValidTrigger(
+    SDUIValidationResponse validationResponse,
+  ) {
+    return validationResponse.trigger.trim().toLowerCase() == 'on_valid';
+  }
+
+  bool _isValidationResponseBlurTrigger(
+    SDUIValidationResponse validationResponse,
+  ) {
+    return validationResponse.trigger.trim().toLowerCase() == 'on_blur';
+  }
+
   bool _isManualAutofillEnabled(SDUIField field) {
     final autofill = field.autofill;
     if (autofill == null || autofill.enabled != true) return false;
@@ -557,6 +742,18 @@ class _SDUIRendererState extends State<SDUIRenderer> {
       _autofillLoading.add(fieldKey);
     } else {
       _autofillLoading.remove(fieldKey);
+    }
+    if (!mounted) return;
+    setState(() {});
+  }
+
+  void _setValidationResponseLoading(String fieldKey, bool isLoading) {
+    final currentlyLoading = _validationResponseLoading.contains(fieldKey);
+    if (isLoading == currentlyLoading) return;
+    if (isLoading) {
+      _validationResponseLoading.add(fieldKey);
+    } else {
+      _validationResponseLoading.remove(fieldKey);
     }
     if (!mounted) return;
     setState(() {});
@@ -607,6 +804,80 @@ class _SDUIRendererState extends State<SDUIRenderer> {
     }
   }
 
+  bool _shouldExecuteValidationResponse(
+    SDUIField field,
+    SDUIValidationResponse validationResponse,
+  ) {
+    if (!_validationResponseConditionsMet(validationResponse)) return false;
+    if (!_fieldHasValue(field)) return false;
+    return !widget.formManager.hasError(field.key);
+  }
+
+  Future<void> _executeValidationResponse(SDUIField field) async {
+    final validationResponse = field.validationResponse;
+    if (validationResponse == null || validationResponse.enabled != true) {
+      return;
+    }
+    if (!_shouldExecuteValidationResponse(field, validationResponse)) return;
+    if (validationResponse.endpoint.trim().isEmpty) return;
+
+    final requestKey = 'validation_response:${field.key}';
+    _validationResponseCancelTokens[requestKey]?.cancel();
+    final cancelToken = CancelToken();
+    _validationResponseCancelTokens[requestKey] = cancelToken;
+    final requestId = ++_validationResponseRequestSequence;
+    _validationResponseRequestIds[field.key] = requestId;
+    widget.formManager.clearValidationResponseError(field.key);
+    widget.formManager.setValidatedText(field.key, null);
+    _setValidationResponseLoading(field.key, true);
+
+    try {
+      final responseData = await _performValidationResponseRequest(
+        validationResponse,
+        cancelToken,
+      );
+      if (responseData == null) return;
+      if (_validationResponseRequestIds[field.key] != requestId) return;
+
+      _applyMappedFields(
+        validationResponse.map,
+        responseData,
+        overwrite: true,
+      );
+      widget.formManager.setValidatedText(
+        field.key,
+        validationResponse.validatedText,
+      );
+    } on DioException catch (e) {
+      if (e.type == DioExceptionType.cancel) return;
+      widget.formManager.setValidatedText(field.key, null);
+      widget.formManager.setValidationResponseError(
+        field.key,
+        _resolveValidationResponseErrorMessage(field, e),
+      );
+      _clearValidationResponseTargets(field, validationResponse);
+      Logger.logError(
+        'Validation response failed for ${field.key}: ${e.message}',
+        tag: 'ValidationResponse',
+      );
+    } catch (e) {
+      widget.formManager.setValidatedText(field.key, null);
+      widget.formManager.setValidationResponseError(
+        field.key,
+        'Unable to validate ${field.label.toLowerCase()}',
+      );
+      _clearValidationResponseTargets(field, validationResponse);
+      Logger.logError(
+        'Validation response failed for ${field.key}: $e',
+        tag: 'ValidationResponse',
+      );
+    } finally {
+      if (_validationResponseRequestIds[field.key] == requestId) {
+        _setValidationResponseLoading(field.key, false);
+      }
+    }
+  }
+
   Future<dynamic> _performAutofillRequest(
     SDUIAutofill autofill,
     CancelToken cancelToken,
@@ -631,6 +902,52 @@ class _SDUIRendererState extends State<SDUIRenderer> {
     );
 
     return response.data;
+  }
+
+  Future<dynamic> _performValidationResponseRequest(
+    SDUIValidationResponse validationResponse,
+    CancelToken cancelToken,
+  ) async {
+    final apiConfig = SDUIAutofillApiRegistry.config;
+    final dio = apiConfig.dio ?? DioService().dio;
+    final headers = _resolveValidationResponseHeaders(
+      validationResponse.headers,
+      apiConfig,
+    );
+    final params = _resolveAutofillParams(validationResponse.params);
+    final method = validationResponse.method.trim().toUpperCase();
+    final endpoint = _resolveAutofillEndpoint(
+      validationResponse.endpoint,
+      apiConfig.baseUrl ?? dio.options.baseUrl,
+    );
+
+    final options = Options(method: method, headers: headers);
+    final response = await dio.request(
+      endpoint,
+      data: method == 'GET' ? null : params,
+      queryParameters: method == 'GET' ? params : null,
+      options: options,
+      cancelToken: cancelToken,
+    );
+
+    return response.data;
+  }
+
+  Map<String, String> _resolveValidationResponseHeaders(
+    List<SDUIValidationResponseHeader> headers,
+    SDUIAutofillApiConfig apiConfig,
+  ) {
+    final resolved = <String, String>{};
+    resolved.addAll(apiConfig.defaultHeaders);
+
+    for (final header in headers) {
+      final key = header.key.trim();
+      final value = header.value.trim();
+      if (key.isEmpty || value.isEmpty) continue;
+      resolved[key] = value;
+    }
+
+    return resolved;
   }
 
   Map<String, dynamic> _resolveAutofillParams(List<SDUIAutofillParam> params) {
@@ -704,22 +1021,31 @@ class _SDUIRendererState extends State<SDUIRenderer> {
   }
 
   bool _autofillConditionsMet(SDUIAutofill autofill) {
-    final when = autofill.when;
+    return _remoteConditionsMet(autofill.when);
+  }
+
+  bool _validationResponseConditionsMet(
+    SDUIValidationResponse validationResponse,
+  ) {
+    return _remoteConditionsMet(validationResponse.when);
+  }
+
+  bool _remoteConditionsMet(SDUIAutofillWhen? when) {
     if (when == null) return true;
 
     final values = widget.formManager.getAllFormData();
-    final allOk = when.all.every((c) => _evaluateAutofillCondition(c, values));
+    final allOk = when.all.every((c) => _evaluateRemoteCondition(c, values));
     final anyOk =
         when.any.isEmpty ||
-        when.any.any((c) => _evaluateAutofillCondition(c, values));
+        when.any.any((c) => _evaluateRemoteCondition(c, values));
     final notOk = when.not.isEmpty
-        ? when.not.every((c) => !_evaluateAutofillCondition(c, values))
+        ? when.not.every((c) => !_evaluateRemoteCondition(c, values))
         : true;
 
     return allOk && anyOk && notOk;
   }
 
-  bool _evaluateAutofillCondition(
+  bool _evaluateRemoteCondition(
     SDUIAutofillCondition condition,
     Map<String, dynamic> values,
   ) {
@@ -752,10 +1078,16 @@ class _SDUIRendererState extends State<SDUIRenderer> {
         return _numericCompare(left, right, (l, r) => l <= r);
       case 'contains':
         return _containsValue(left, right);
+      case 'not_contains':
+        return !_containsValue(left, right);
       case 'starts_with':
         return _startsWith(left, right);
+      case 'not_starts_with':
+        return !_startsWith(left, right);
       case 'ends_with':
         return _endsWith(left, right);
+      case 'not_ends_with':
+        return !_endsWith(left, right);
       case 'empty':
         return _isEmpty(left);
       case 'not_empty':
@@ -843,8 +1175,15 @@ class _SDUIRendererState extends State<SDUIRenderer> {
   void _applyAutofillMappings(SDUIAutofill autofill, dynamic responseData) {
     if (autofill.map.isEmpty) return;
     final overwrite = autofill.overwrite.trim().toLowerCase() == 'always';
+    _applyMappedFields(autofill.map, responseData, overwrite: overwrite);
+  }
 
-    for (final mapping in autofill.map) {
+  void _applyMappedFields(
+    List<SDUIAutofillMap> mappings,
+    dynamic responseData, {
+    required bool overwrite,
+  }) {
+    for (final mapping in mappings) {
       if (mapping.target.trim().isEmpty || mapping.path.trim().isEmpty) {
         continue;
       }
@@ -861,6 +1200,26 @@ class _SDUIRendererState extends State<SDUIRenderer> {
       _applyAutofillToField(targetField, value, overwrite: overwrite);
       _evaluateConditionalsForChangedField(targetField.key);
     }
+  }
+
+  String _resolveValidationResponseErrorMessage(
+    SDUIField field,
+    DioException error,
+  ) {
+    final responseData = error.response?.data;
+    final candidates = <dynamic>[
+      responseData is Map ? responseData['message'] : null,
+      responseData is Map ? responseData['error'] : null,
+      responseData is Map ? responseData['detail'] : null,
+      responseData is String ? responseData : null,
+    ];
+
+    for (final candidate in candidates) {
+      final text = candidate?.toString().trim();
+      if (text != null && text.isNotEmpty) return text;
+    }
+
+    return 'Unable to validate ${field.label.toLowerCase()}';
   }
 
   void _applyAutofillToField(
@@ -1035,6 +1394,27 @@ class _SDUIRendererState extends State<SDUIRenderer> {
       }
     }
     return isValid;
+  }
+
+  bool _isFormCurrentlyValid() {
+    for (final page in _visiblePages) {
+      for (final section in page.sections) {
+        final sectionHidden = widget.formManager.isHidden(
+          _visKey('section', section.key),
+          fallback: section.hidden,
+        );
+        if (sectionHidden) continue;
+
+        for (final field in section.fields) {
+          if (_isFieldHidden(field)) continue;
+          if (widget.formManager.hasError(field.key)) return false;
+          if (_isFieldRequired(field) && !_fieldHasRequiredValue(field)) {
+            return false;
+          }
+        }
+      }
+    }
+    return true;
   }
 
   bool _validateRequiredFieldsForPage(SDUIPage page) {
@@ -1249,9 +1629,68 @@ class _SDUIRendererState extends State<SDUIRenderer> {
     }
   }
 
+  Map<String, dynamic> _buildSubmissionData() {
+    final formData = Map<String, dynamic>.from(widget.formManager.getAllFormData());
+
+    for (final field in _fieldIndex.values) {
+      if (!_isEmpty(formData[field.key])) continue;
+
+      final resolvedDefault = _resolveDefaultValue(field);
+      if (resolvedDefault == null) continue;
+
+      final normalized = _normalizeSubmissionFallbackValue(
+        field,
+        resolvedDefault,
+      );
+      if (normalized == null) continue;
+      formData[field.key] = normalized;
+    }
+
+    return formData;
+  }
+
+  dynamic _normalizeSubmissionFallbackValue(SDUIField field, Object? value) {
+    if (value == null) return null;
+
+    switch (field.type) {
+      case 'short-text':
+      case 'medium-text':
+      case 'long-text':
+      case 'text':
+      case 'email':
+      case 'url':
+      case 'password':
+      case 'phone':
+        return value.toString();
+
+      case 'number':
+        final textValue = value.toString();
+        return num.tryParse(textValue) ?? value;
+
+      case 'boolean':
+        return _toBool(value) ?? value;
+
+      case 'country':
+        final countryValue = value.toString();
+        return countryValue.isEmpty ? null : countryValue;
+
+      case 'options':
+        final options = _toStringList(value);
+        if (options.isEmpty) return null;
+        return _normalizeOptionsFieldValue(field, options);
+
+      case 'date':
+      case 'datetime':
+        return _toDateTime(value) ?? value;
+
+      default:
+        return value;
+    }
+  }
+
   void _submitForm() {
     if (!_validateRequiredFieldsForForm()) return;
-    final formData = widget.formManager.getAllFormData();
+    final formData = _buildSubmissionData();
     widget.onSubmit?.call(formData);
   }
 
@@ -1298,7 +1737,10 @@ class _SDUIRendererState extends State<SDUIRenderer> {
         ),
         if (widget.showNavigationButtons) ...[
           const SizedBox(height: 12),
-          _buildNavigationButtons(),
+          ListenableBuilder(
+            listenable: widget.formManager,
+            builder: (context, _) => _buildNavigationButtons(),
+          ),
           const SizedBox(height: 16),
         ],
       ],
@@ -1347,6 +1789,7 @@ class _SDUIRendererState extends State<SDUIRenderer> {
                       formManager: widget.formManager,
                       currentPage: _currentPageIndex,
                       totalPages: widget.form.form.pages.length,
+                      isFormValid: _isFormCurrentlyValid(),
                       submitForm: _submitForm,
                     ),
                   )
@@ -1399,7 +1842,9 @@ class _SDUIRendererState extends State<SDUIRenderer> {
         autofill != null &&
         autofill.enabled == true &&
         _isManualTrigger(autofill);
-    final isAutofillLoading = _autofillLoading.contains(field.key);
+    final isRemoteLoading =
+        _autofillLoading.contains(field.key) ||
+        _validationResponseLoading.contains(field.key);
 
     return SDUIFieldRenderer(
       field: field,
@@ -1411,7 +1856,7 @@ class _SDUIRendererState extends State<SDUIRenderer> {
       isAutofillEnabled: isManual
           ? () => _isManualAutofillEnabled(field)
           : null,
-      isAutofillLoading: isAutofillLoading,
+      isAutofillLoading: isRemoteLoading,
     );
   }
 }
