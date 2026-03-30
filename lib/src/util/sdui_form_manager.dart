@@ -78,6 +78,23 @@ class FormManager extends ChangeNotifier {
     notifyListeners();
   }
 
+  void setFieldError(String key, String? error) {
+    final normalizedKey = key.trim();
+    if (normalizedKey.isEmpty) return;
+
+    final normalizedError = error?.trim();
+    if (normalizedError == null || normalizedError.isEmpty) {
+      if (!errorMessages.containsKey(normalizedKey)) return;
+      errorMessages.remove(normalizedKey);
+      notifyListeners();
+      return;
+    }
+
+    if (errorMessages[normalizedKey] == normalizedError) return;
+    errorMessages[normalizedKey] = normalizedError;
+    notifyListeners();
+  }
+
   /// Gets the error message for a specific field
   ///
   /// This method retrieves the current error message associated with a form field.
@@ -89,9 +106,9 @@ class FormManager extends ChangeNotifier {
   /// Returns:
   /// - [String?]: The error message for the field, or null if no error is set
   String? getError(String key) {
-    return errorMessages[key] ??
-        autofillErrors[key] ??
-        validationResponseErrors[key];
+    return _lookupError(errorMessages, key) ??
+        _lookupError(autofillErrors, key) ??
+        _lookupError(validationResponseErrors, key);
   }
 
   void setAutofillError(String key, String? error) {
@@ -104,8 +121,8 @@ class FormManager extends ChangeNotifier {
   }
 
   void clearAutofillError(String key) {
-    if (!autofillErrors.containsKey(key)) return;
-    autofillErrors.remove(key);
+    final removed = _removeError(autofillErrors, key);
+    if (!removed) return;
     notifyListeners();
   }
 
@@ -119,8 +136,8 @@ class FormManager extends ChangeNotifier {
   }
 
   void clearValidationResponseError(String key) {
-    if (!validationResponseErrors.containsKey(key)) return;
-    validationResponseErrors.remove(key);
+    final removed = _removeError(validationResponseErrors, key);
+    if (!removed) return;
     notifyListeners();
   }
 
@@ -159,6 +176,71 @@ class FormManager extends ChangeNotifier {
     if (_formErrors.isEmpty) return;
     _formErrors.clear();
     notifyListeners();
+  }
+
+  void applyErrorPayload(dynamic payload, {bool clearExisting = true}) {
+    final normalizedPayload = _normalizeErrorPayload(payload);
+
+    if (clearExisting) {
+      errorMessages.clear();
+      autofillErrors.clear();
+      validationResponseErrors.clear();
+      _formErrors.clear();
+    } else {
+      _formErrors.clear();
+    }
+
+    final rawErrors = normalizedPayload['errors'];
+    var hasMappedErrors = false;
+
+    if (rawErrors is Map) {
+      rawErrors.forEach((key, value) {
+        final normalizedKey = key.toString().trim();
+        if (normalizedKey.isEmpty) return;
+
+        final messages = _normalizeErrorMessages(value);
+        if (messages.isEmpty) return;
+
+        if (normalizedKey == '_form') {
+          _formErrors.addAll(messages);
+        } else {
+          errorMessages[normalizedKey] = messages.first;
+        }
+        hasMappedErrors = true;
+      });
+    }
+
+    final message = normalizedPayload['message']?.toString().trim();
+    if (!hasMappedErrors && message != null && message.isNotEmpty) {
+      _formErrors
+        ..clear()
+        ..add(message);
+    }
+
+    notifyListeners();
+  }
+
+  Map<String, dynamic> _normalizeErrorPayload(dynamic payload) {
+    if (payload is Map<String, dynamic>) return payload;
+    if (payload is Map) {
+      return Map<String, dynamic>.from(
+        payload.map((key, value) => MapEntry(key.toString(), value)),
+      );
+    }
+    return const <String, dynamic>{};
+  }
+
+  List<String> _normalizeErrorMessages(dynamic value) {
+    if (value is List) {
+      return value
+          .map((entry) => entry?.toString().trim() ?? '')
+          .where((entry) => entry.isNotEmpty)
+          .toList();
+    }
+
+    final text = value?.toString().trim();
+    if (text == null || text.isEmpty) return const [];
+    return [text];
   }
 
   /// Sets a field value for a specific form field
@@ -440,11 +522,11 @@ class FormManager extends ChangeNotifier {
   /// Returns:
   /// - [bool]: True if the field has an error, false otherwise
   bool hasError(String key) {
-    final local = errorMessages[key];
+    final local = _lookupError(errorMessages, key);
     if (local != null && local.isNotEmpty) return true;
-    final autofill = autofillErrors[key];
+    final autofill = _lookupError(autofillErrors, key);
     if (autofill != null && autofill.isNotEmpty) return true;
-    final remote = validationResponseErrors[key];
+    final remote = _lookupError(validationResponseErrors, key);
     return remote != null && remote.isNotEmpty;
   }
 
@@ -472,9 +554,9 @@ class FormManager extends ChangeNotifier {
   /// Parameters:
   /// - [key]: The unique identifier for the form field
   void clearError(String key) {
-    errorMessages.remove(key);
-    autofillErrors.remove(key);
-    validationResponseErrors.remove(key);
+    _removeError(errorMessages, key);
+    _removeError(autofillErrors, key);
+    _removeError(validationResponseErrors, key);
     notifyListeners();
   }
 
@@ -552,5 +634,38 @@ class FormManager extends ChangeNotifier {
     if (_hiddenByKey[key] == hidden) return;
     _hiddenByKey[key] = hidden;
     notifyListeners();
+  }
+
+  String? _lookupError(Map<String, String?> source, String key) {
+    final exact = source[key];
+    if (exact != null) return exact;
+
+    final normalized = key.trim().toLowerCase();
+    for (final entry in source.entries) {
+      if (entry.key.trim().toLowerCase() == normalized) {
+        return entry.value;
+      }
+    }
+
+    return null;
+  }
+
+  bool _removeError(Map<String, String?> source, String key) {
+    var removed = false;
+
+    if (source.remove(key) != null) {
+      removed = true;
+    }
+
+    final normalized = key.trim().toLowerCase();
+    final aliases = source.keys
+        .where((existingKey) => existingKey.trim().toLowerCase() == normalized)
+        .toList();
+    for (final alias in aliases) {
+      source.remove(alias);
+      removed = true;
+    }
+
+    return removed;
   }
 }

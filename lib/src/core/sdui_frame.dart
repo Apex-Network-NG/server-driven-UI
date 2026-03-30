@@ -35,6 +35,9 @@ class SDUIFrame extends StatefulWidget {
   /// Callback when any field value changes
   final Function(String key, dynamic value)? onFieldChanged;
 
+  /// Optional externally managed form state
+  final FormManager? formManager;
+
   /// Whether to show the default navigation buttons
   final bool showNavigationButtons;
 
@@ -57,6 +60,7 @@ class SDUIFrame extends StatefulWidget {
     this.formUrl,
     this.onSubmit,
     this.onFieldChanged,
+    this.formManager,
     this.showNavigationButtons = true,
     this.navigationBuilder,
   });
@@ -67,14 +71,17 @@ class SDUIFrame extends StatefulWidget {
 
 class _SDUIFrameState extends State<SDUIFrame> {
   late SDUIForm _form;
+  late final FormManager _formManager;
+  late final bool _ownsFormManager;
   bool _isLoading = true;
   String? _error;
-  final formManager = FormManager();
   final provider = FormProvider.instance;
 
   @override
   void initState() {
     super.initState();
+    _formManager = widget.formManager ?? FormManager();
+    _ownsFormManager = widget.formManager == null;
     _initializeForm();
   }
 
@@ -176,7 +183,9 @@ class _SDUIFrameState extends State<SDUIFrame> {
 
   @override
   void dispose() {
-    formManager.disposeForm();
+    if (_ownsFormManager) {
+      _formManager.disposeForm();
+    }
     super.dispose();
   }
 
@@ -203,7 +212,7 @@ class _SDUIFrameState extends State<SDUIFrame> {
 
     return SDUIRenderer(
       form: _form,
-      formManager: formManager,
+      formManager: _formManager,
       onSubmit: widget.onSubmit,
       onFieldChanged: widget.onFieldChanged,
       showNavigationButtons: widget.showNavigationButtons,
