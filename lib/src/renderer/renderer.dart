@@ -835,7 +835,7 @@ class _SDUIRendererState extends State<SDUIRenderer> {
         ownerField: field,
         envelope: _parseRemoteErrorEnvelope(e.response?.data),
         isValidationResponse: false,
-        fallbackMessage: 'Unable to autofill ${field.label.toLowerCase()}',
+        fallbackMessage: 'Unable to autofill ${field.label}',
       );
       Logger.logError(
         'Autofill request failed for ${field.key}: ${e.message}',
@@ -852,7 +852,7 @@ class _SDUIRendererState extends State<SDUIRenderer> {
           formErrors: [],
         ),
         isValidationResponse: false,
-        fallbackMessage: 'Unable to autofill ${field.label.toLowerCase()}',
+        fallbackMessage: 'Unable to autofill ${field.label}',
       );
       Logger.logError('Autofill failed for ${field.key}: $e', tag: 'Autofill');
     } finally {
@@ -910,7 +910,7 @@ class _SDUIRendererState extends State<SDUIRenderer> {
         ownerField: field,
         envelope: _parseRemoteErrorEnvelope(e.response?.data),
         isValidationResponse: true,
-        fallbackMessage: 'Unable to validate ${field.label.toLowerCase()}',
+        fallbackMessage: 'Unable to validate ${field.label}',
       );
       _clearValidationResponseTargets(field, validationResponse);
       Logger.logError(
@@ -928,7 +928,7 @@ class _SDUIRendererState extends State<SDUIRenderer> {
           formErrors: [],
         ),
         isValidationResponse: true,
-        fallbackMessage: 'Unable to validate ${field.label.toLowerCase()}',
+        fallbackMessage: 'Unable to validate ${field.label}',
       );
       _clearValidationResponseTargets(field, validationResponse);
       Logger.logError(
@@ -1162,6 +1162,21 @@ class _SDUIRendererState extends State<SDUIRenderer> {
     return null;
   }
 
+  String? _resolveFieldErrorKey(String rawKey) {
+    final trimmed = rawKey.trim();
+    if (trimmed.isEmpty) return null;
+    if (_fieldIndex.containsKey(trimmed)) return trimmed;
+
+    final normalized = trimmed.toLowerCase();
+    for (final existingKey in _fieldIndex.keys) {
+      if (existingKey.toLowerCase() == normalized) {
+        return existingKey;
+      }
+    }
+
+    return null;
+  }
+
   void _applyRemoteErrorEnvelope({
     required SDUIField ownerField,
     required _RemoteErrorEnvelope envelope,
@@ -1176,8 +1191,8 @@ class _SDUIRendererState extends State<SDUIRenderer> {
 
     var appliedFieldError = false;
     for (final entry in envelope.fieldErrors.entries) {
-      final fieldKey = entry.key.trim();
-      if (!_fieldIndex.containsKey(fieldKey)) continue;
+      final fieldKey = _resolveFieldErrorKey(entry.key);
+      if (fieldKey == null) continue;
 
       final message = _primaryRemoteError(entry.value);
       if (message == null) continue;
