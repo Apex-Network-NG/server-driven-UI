@@ -133,6 +133,7 @@ Map<String, String> normalizeAddressValue(
   SDUIField field,
   Object? value, {
   bool includeDefaults = false,
+  bool trimValues = true,
 }) {
   final componentFields = resolveAddressComponentFields(field);
   final normalized = <String, String>{
@@ -141,10 +142,17 @@ Map<String, String> normalizeAddressValue(
 
   if (value is String) {
     if (componentFields.isNotEmpty) {
-      normalized[componentFields.first.key] = value.trim();
+      normalized[componentFields.first.key] = _normalizeAddressText(
+        value,
+        trimValues: trimValues,
+      );
     }
     return includeDefaults
-        ? _applyAddressDefaults(componentFields, normalized)
+        ? _applyAddressDefaults(
+            componentFields,
+            normalized,
+            trimValues: trimValues,
+          )
         : normalized;
   }
 
@@ -157,8 +165,10 @@ Map<String, String> normalizeAddressValue(
     for (final componentField in componentFields) {
       for (final alias in _aliasesFor(componentField.key)) {
         final resolved = source[alias];
-        final text = resolved?.toString().trim() ?? '';
-        if (text.isEmpty) continue;
+        final text = _normalizeAddressText(resolved, trimValues: trimValues);
+        if (_isNormalizedAddressTextEmpty(text, trimValues: trimValues)) {
+          continue;
+        }
         normalized[componentField.key] = text;
         break;
       }
@@ -166,7 +176,11 @@ Map<String, String> normalizeAddressValue(
   }
 
   return includeDefaults
-      ? _applyAddressDefaults(componentFields, normalized)
+      ? _applyAddressDefaults(
+          componentFields,
+          normalized,
+          trimValues: trimValues,
+        )
       : normalized;
 }
 
@@ -275,18 +289,33 @@ SDUIField _legacyAddressField({
 
 Map<String, String> _applyAddressDefaults(
   List<SDUIField> componentFields,
-  Map<String, String> value,
-) {
+  Map<String, String> value, {
+  bool trimValues = true,
+}) {
   final merged = Map<String, String>.from(value);
 
   for (final componentField in componentFields) {
     if ((merged[componentField.key] ?? '').trim().isNotEmpty) continue;
-    final defaultValue = componentField.defaultValue?.toString().trim();
-    if (defaultValue == null || defaultValue.isEmpty) continue;
+    final defaultValue = _normalizeAddressText(
+      componentField.defaultValue,
+      trimValues: trimValues,
+    );
+    if (_isNormalizedAddressTextEmpty(defaultValue, trimValues: trimValues)) {
+      continue;
+    }
     merged[componentField.key] = defaultValue;
   }
 
   return merged;
+}
+
+String _normalizeAddressText(Object? value, {required bool trimValues}) {
+  final text = value?.toString() ?? '';
+  return trimValues ? text.trim() : text;
+}
+
+bool _isNormalizedAddressTextEmpty(String value, {required bool trimValues}) {
+  return trimValues ? value.isEmpty : value.trim().isEmpty;
 }
 
 List<String> _aliasesFor(String key) {

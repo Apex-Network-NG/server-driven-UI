@@ -90,6 +90,7 @@ class _SDUIAddressFieldState extends SDUIBaseState<SDUIAddressField> {
     final normalized = normalizeAddressValue(
       widget.field,
       _currentAddressValue(),
+      trimValues: false,
     );
     final components = <SDUIAddressInputBinding>[
       for (var index = 0; index < _componentFields.length; index++)
@@ -138,7 +139,7 @@ class _SDUIAddressFieldState extends SDUIBaseState<SDUIAddressField> {
     final rawValue = _currentComponentValue(componentField);
     final displayValue = fieldType == 'country'
         ? (country?.countryName ?? controller.text.trim())
-        : controller.text.trim();
+        : controller.text;
 
     return SDUIAddressInputBinding(
       field: componentField,
@@ -441,15 +442,12 @@ class _SDUIAddressFieldState extends SDUIBaseState<SDUIAddressField> {
   }
 
   void _commitAddressValue(Map<String, String> value) {
-    final compactValue = compactAddressValue(widget.field, value);
-    widget.onChanged?.call(widget.field.key, compactValue);
-    validateField(compactValue);
+    widget.onChanged?.call(widget.field.key, Map<String, String>.from(value));
+    validateField(value);
   }
 
   String? _validateAddress([Map<String, String>? value]) {
-    return validateField(
-      value ?? compactAddressValue(widget.field, _currentAddressValue()),
-    );
+    return validateField(value ?? _currentAddressValue());
   }
 
   Map<String, String> _currentAddressValue() {
@@ -469,14 +467,14 @@ class _SDUIAddressFieldState extends SDUIBaseState<SDUIAddressField> {
       if (selected != null && selected.countryCode.trim().isNotEmpty) {
         return selected.countryCode.trim();
       }
-      return _controllers[key]!.text.trim();
+      return _controllers[key]!.text;
     }
 
-    final text = _controllers[key]!.text.trim();
+    final text = _controllers[key]!.text;
     final mask = componentField.ui?.mask?.trim();
     if (mask == null || mask.isEmpty) return text;
     final formatter = SDUIMaskTextInputFormatter(mask: mask);
-    return formatter.unmask(text).trim();
+    return formatter.unmask(text);
   }
 
   void _syncStateFromValue(Object? value) {
@@ -484,6 +482,7 @@ class _SDUIAddressFieldState extends SDUIBaseState<SDUIAddressField> {
       widget.field,
       value,
       includeDefaults: true,
+      trimValues: false,
     );
 
     for (final componentField in _componentFields) {
