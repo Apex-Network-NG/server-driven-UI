@@ -624,6 +624,12 @@ class _SDUIRendererState extends State<SDUIRenderer> {
       final targetKey = mapping.target.trim();
       if (targetKey.isEmpty || targetKey == field.key) continue;
 
+      final validatedTextTargetKey = _validatedTextTargetFieldKey(targetKey);
+      if (validatedTextTargetKey != null) {
+        widget.formManager.setValidatedText(validatedTextTargetKey, null);
+        continue;
+      }
+
       final targetField = _fieldIndex[targetKey];
       if (targetField == null) continue;
       _clearFieldValue(targetField);
@@ -919,10 +925,10 @@ class _SDUIRendererState extends State<SDUIRenderer> {
       if (_validationResponseRequestIds[field.key] != requestId) return;
 
       _applyMappedFields(validationResponse.map, responseData, overwrite: true);
-      widget.formManager.setValidatedText(
-        field.key,
-        validationResponse.validatedText,
-      );
+      final validatedText = validationResponse.validatedText?.trim();
+      if (validatedText != null && validatedText.isNotEmpty) {
+        widget.formManager.setValidatedText(field.key, validatedText);
+      }
     } on DioException catch (e) {
       if (e.type == DioExceptionType.cancel) return;
       widget.formManager.setValidatedText(field.key, null);
@@ -1004,10 +1010,13 @@ class _SDUIRendererState extends State<SDUIRenderer> {
       validationResponse.endpoint,
       apiConfig.baseUrl ?? dio.options.baseUrl,
     );
+    final requestEndpoint = method == 'GET'
+        ? endpoint
+        : _appendQueryParametersToEndpoint(endpoint, params);
 
     final options = Options(method: method, headers: headers);
     final response = await dio.request(
-      endpoint,
+      requestEndpoint,
       data: method == 'GET' ? null : params,
       queryParameters: method == 'GET' ? params : null,
       options: options,
@@ -1015,6 +1024,21 @@ class _SDUIRendererState extends State<SDUIRenderer> {
     );
 
     return response.data;
+  }
+
+  String _appendQueryParametersToEndpoint(
+    String endpoint,
+    Map<String, dynamic> params,
+  ) {
+    if (params.isEmpty) return endpoint;
+
+    final uri = Uri.parse(endpoint);
+    final queryParameters = <String, String>{
+      ...uri.queryParameters,
+      ...params.map((key, value) => MapEntry(key, value?.toString() ?? '')),
+    };
+
+    return uri.replace(queryParameters: queryParameters).toString();
   }
 
   Map<String, String> _resolveValidationResponseHeaders(
@@ -1406,8 +1430,6 @@ class _SDUIRendererState extends State<SDUIRenderer> {
       if (mapping.target.trim().isEmpty || mapping.path.trim().isEmpty) {
         continue;
       }
-      final targetField = _fieldIndex[mapping.target];
-      if (targetField == null) continue;
 
       final value = dataGet(
         jsonEncode(responseData),
@@ -1416,9 +1438,34 @@ class _SDUIRendererState extends State<SDUIRenderer> {
       );
       if (value == null) continue;
 
+      final validatedTextTargetKey = _validatedTextTargetFieldKey(
+        mapping.target,
+      );
+      if (validatedTextTargetKey != null) {
+        widget.formManager.setValidatedText(
+          validatedTextTargetKey,
+          value.toString(),
+        );
+        continue;
+      }
+
+      final targetField = _fieldIndex[mapping.target];
+      if (targetField == null) continue;
       _applyAutofillToField(targetField, value, overwrite: overwrite);
       _evaluateConditionalsForChangedField(targetField.key);
     }
+  }
+
+  String? _validatedTextTargetFieldKey(String target) {
+    final match = RegExp(
+      r'^\{field_validated_text:([^}]+)\}$',
+      caseSensitive: false,
+    ).firstMatch(target.trim());
+    final key = match?.group(1)?.trim();
+    if (key == null || key.isEmpty) return null;
+
+    final field = _fieldIndex[key];
+    return field?.key;
   }
 
   void _applyAutofillToField(

@@ -20,6 +20,7 @@ class SDUIAddressInputBinding {
   final int maxLines;
   final bool isEnabled;
   final bool isCountryField;
+  final bool isFailing;
   final String value;
   final String displayValue;
   final CountryForm? selectedCountry;
@@ -37,6 +38,7 @@ class SDUIAddressInputBinding {
     required this.maxLines,
     required this.isEnabled,
     required this.isCountryField,
+    required this.isFailing,
     required this.value,
     required this.displayValue,
     required this.selectedCountry,
@@ -57,6 +59,7 @@ class SDUIAddressComponentContext {
   final Map<String, String>? compactValue;
   final List<SDUIAddressInputBinding> components;
   final Map<String, SDUIAddressInputBinding> componentsByKey;
+  final String? failingComponentKey;
   final SDUIAddressComponentValueSetter setComponentValue;
   final SDUIAddressComponentValuesSetter setValues;
   final String? Function([Map<String, String>? value]) validate;
@@ -74,6 +77,7 @@ class SDUIAddressComponentContext {
     required this.compactValue,
     required this.components,
     required this.componentsByKey,
+    required this.failingComponentKey,
     required this.setComponentValue,
     required this.setValues,
     required this.validate,
@@ -82,6 +86,12 @@ class SDUIAddressComponentContext {
 
   SDUIAddressInputBinding? component(String key) {
     return componentsByKey[key];
+  }
+
+  SDUIAddressInputBinding? get failingComponent {
+    final key = failingComponentKey;
+    if (key == null || key.trim().isEmpty) return null;
+    return component(key);
   }
 
   SDUIAddressInputBinding? get addressLine1 =>

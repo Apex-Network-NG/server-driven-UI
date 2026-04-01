@@ -34,6 +34,7 @@ class _SDUIAddressFieldState extends SDUIBaseState<SDUIAddressField> {
   late final Map<String, FocusNode> _focusNodes;
   final Map<String, CountryForm?> _selectedCountries = <String, CountryForm?>{};
   final List<Country> _countries = CountryService().getAll();
+  String? _failingComponentKey;
 
   @override
   void initState() {
@@ -94,6 +95,9 @@ class _SDUIAddressFieldState extends SDUIBaseState<SDUIAddressField> {
       for (var index = 0; index < _componentFields.length; index++)
         _buildInputBinding(_componentFields[index], index),
     ];
+    final failingComponentKey = widget.formManager.hasError(widget.field.key)
+        ? _failingComponentKey
+        : null;
 
     return SDUIAddressComponentContext(
       field: widget.field,
@@ -109,6 +113,7 @@ class _SDUIAddressFieldState extends SDUIBaseState<SDUIAddressField> {
       componentsByKey: <String, SDUIAddressInputBinding>{
         for (final component in components) component.field.key: component,
       },
+      failingComponentKey: failingComponentKey,
       setComponentValue: _setComponentValue,
       setValues: _setValues,
       validate: _validateAddress,
@@ -148,6 +153,9 @@ class _SDUIAddressFieldState extends SDUIBaseState<SDUIAddressField> {
       maxLines: (ui?.multilineRows ?? 1).clamp(1, 8),
       isEnabled: !widget.field.readonly && !componentField.readonly,
       isCountryField: fieldType == 'country',
+      isFailing:
+          widget.formManager.hasError(widget.field.key) &&
+          _failingComponentKey == key,
       value: rawValue,
       displayValue: displayValue,
       selectedCountry: country,
@@ -546,6 +554,7 @@ class _SDUIAddressFieldState extends SDUIBaseState<SDUIAddressField> {
   @override
   String? validateField(dynamic value) {
     widget.formManager.clearError(widget.field.key);
+    _failingComponentKey = null;
     final normalized = normalizeAddressValue(widget.field, value);
     final requiredKeys = requiredAddressComponentFields(
       widget.field,
@@ -555,6 +564,7 @@ class _SDUIAddressFieldState extends SDUIBaseState<SDUIAddressField> {
       final componentValue = (normalized[componentField.key] ?? '').trim();
 
       if (requiredKeys.contains(componentField.key) && componentValue.isEmpty) {
+        _failingComponentKey = componentField.key;
         final error = _componentRequiredMessage(componentField);
         widget.formManager.addError(widget.field.key, error);
         return error;
@@ -572,6 +582,7 @@ class _SDUIAddressFieldState extends SDUIBaseState<SDUIAddressField> {
       );
 
       if (error != null) {
+        _failingComponentKey = componentField.key;
         widget.formManager.addError(widget.field.key, error);
         return error;
       }
