@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:sdui/src/config/autofill/autofill_api_config.dart';
 import 'package:sdui/src/config/country/country_form.dart';
 import 'package:sdui/src/config/options/options_ui_registry.dart';
+import 'package:sdui/src/config/section/section_header_registry.dart';
 import 'package:sdui/src/config/submit_button/submit_button_registry.dart';
 import 'package:sdui/src/core/service/dio_service.dart';
 import 'package:sdui/src/renderer/field_renderer.dart';
@@ -65,10 +66,14 @@ class SDUIRenderer extends StatefulWidget {
 
 class _SDUIRendererState extends State<SDUIRenderer> {
   final PageController _pageController = PageController();
+  final GlobalKey _formErrorsKey = GlobalKey();
+  final GlobalKey _navigationAreaKey = GlobalKey();
   int _currentPageIndex = 0;
   late final Map<String, SDUIField> _fieldIndex;
   late final Map<String, Set<String>> _autofillTargetsByDependencyKey;
   late final Map<String, Set<String>> _validationResponseFieldsByDependencyKey;
+  final Map<String, GlobalKey> _pageContentKeys = {};
+  final Map<String, double> _pageContentHeights = {};
   final Map<String, Object?> _resolvedDefaults = {};
   final Map<String, Timer> _autofillTimers = {};
   final Map<String, CancelToken> _autofillCancelTokens = {};
@@ -80,6 +85,9 @@ class _SDUIRendererState extends State<SDUIRenderer> {
   final Map<String, VoidCallback> _validationResponseBlurListeners = {};
   int _autofillRequestSequence = 0;
   int _validationResponseRequestSequence = 0;
+  double _measuredFormErrorsHeight = 0;
+  double _measuredNavigationHeight = 0;
+  bool _layoutMeasurementScheduled = false;
 
   String _visKey(String type, String key) {
     // avoid collisions between field keys and section/page keys
@@ -98,14 +106,30 @@ class _SDUIRendererState extends State<SDUIRenderer> {
   @override
   void initState() {
     super.initState();
+    widget.formManager.addListener(_handleFormManagerChanged);
     _initializeFormFields();
+    _scheduleLayoutMeasurement();
+  }
+
+  @override
+  void didUpdateWidget(covariant SDUIRenderer oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.formManager == widget.formManager) return;
+    oldWidget.formManager.removeListener(_handleFormManagerChanged);
+    widget.formManager.addListener(_handleFormManagerChanged);
+    _scheduleLayoutMeasurement();
   }
 
   @override
   void dispose() {
+    widget.formManager.removeListener(_handleFormManagerChanged);
     _pageController.dispose();
     _disposeAutofillResources();
     super.dispose();
+  }
+
+  void _handleFormManagerChanged() {
+    _scheduleLayoutMeasurement();
   }
 
   void _disposeAutofillResources() {
@@ -2043,6 +2067,65 @@ class _SDUIRendererState extends State<SDUIRenderer> {
     }).toList();
   }
 
+  GlobalKey _pageContentKey(String pageKey) {
+    return _pageContentKeys.putIfAbsent(pageKey, () => GlobalKey());
+  }
+
+  void _scheduleLayoutMeasurement() {
+    if (_layoutMeasurementScheduled) return;
+    _layoutMeasurementScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _layoutMeasurementScheduled = false;
+      if (!mounted) return;
+      _measureLayoutHeights();
+    });
+  }
+
+  void _measureLayoutHeights() {
+    final pages = _visiblePages;
+    final currentPage =
+        _currentPageIndex >= 0 && _currentPageIndex < pages.length
+        ? pages[_currentPageIndex]
+        : null;
+    final nextFormErrorsHeight = _measureWidgetHeight(_formErrorsKey);
+    final nextNavigationHeight = _measureWidgetHeight(_navigationAreaKey);
+    final nextPageContentHeight = currentPage == null
+        ? 0.0
+        : _measureWidgetHeight(_pageContentKey(currentPage.key));
+
+    final previousPageHeight = currentPage == null
+        ? null
+        : _pageContentHeights[currentPage.key];
+    final hasPageHeightChanged =
+        currentPage != null &&
+        (previousPageHeight == null ||
+            (previousPageHeight - nextPageContentHeight).abs() > 0.5);
+    final hasFormErrorsChanged =
+        (_measuredFormErrorsHeight - nextFormErrorsHeight).abs() > 0.5;
+    final hasNavigationChanged =
+        (_measuredNavigationHeight - nextNavigationHeight).abs() > 0.5;
+
+    if (!hasFormErrorsChanged &&
+        !hasNavigationChanged &&
+        !hasPageHeightChanged) {
+      return;
+    }
+
+    setState(() {
+      _measuredFormErrorsHeight = nextFormErrorsHeight;
+      _measuredNavigationHeight = nextNavigationHeight;
+      if (currentPage != null) {
+        _pageContentHeights[currentPage.key] = nextPageContentHeight;
+      }
+    });
+  }
+
+  double _measureWidgetHeight(GlobalKey key) {
+    final renderObject = key.currentContext?.findRenderObject();
+    if (renderObject is! RenderBox) return 0;
+    return renderObject.hasSize ? renderObject.size.height : 0;
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -2056,52 +2139,121 @@ class _SDUIRendererState extends State<SDUIRenderer> {
         _pageController.jumpToPage(newIndex);
       });
     }
-    return Column(
-      children: [
-        ListenableBuilder(
-          listenable: widget.formManager,
-          builder: (context, _) {
-            final formErrors = widget.formManager.getFormErrors();
-            if (formErrors.isEmpty) return const SizedBox.shrink();
+    _scheduleLayoutMeasurement();
 
-            return Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-              child: Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.errorContainer,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Text(
-                  formErrors.join('\n'),
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.onErrorContainer,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final hasBoundedHeight =
+            constraints.hasBoundedHeight && constraints.maxHeight.isFinite;
+        final navigationHeight = widget.showNavigationButtons
+            ? _measuredNavigationHeight
+            : 0.0;
+        final double? availablePageHeight = hasBoundedHeight
+            ? math
+                  .max(
+                    0.0,
+                    constraints.maxHeight -
+                        _measuredFormErrorsHeight -
+                        navigationHeight,
+                  )
+                  .toDouble()
+            : null;
+        final currentPage =
+            _currentPageIndex >= 0 && _currentPageIndex < pages.length
+            ? pages[_currentPageIndex]
+            : null;
+        final measuredPageHeight = currentPage == null
+            ? null
+            : _pageContentHeights[currentPage.key];
+        final double? resolvedPageHeight = availablePageHeight == null
+            ? null
+            : measuredPageHeight == null
+            ? availablePageHeight
+            : math.min(measuredPageHeight, availablePageHeight).toDouble();
+
+        return Column(
+          children: [
+            _buildFormErrorsBanner(theme),
+            if (hasBoundedHeight)
+              Flexible(
+                fit: FlexFit.loose,
+                child: AnimatedSize(
+                  duration: const Duration(milliseconds: 200),
+                  curve: Curves.easeInOut,
+                  alignment: Alignment.topCenter,
+                  child: SizedBox(
+                    height: resolvedPageHeight,
+                    child: _buildPageView(pages),
                   ),
                 ),
+              )
+            else
+              Expanded(child: _buildPageView(pages)),
+            _buildNavigationArea(),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildFormErrorsBanner(ThemeData theme) {
+    return ListenableBuilder(
+      listenable: widget.formManager,
+      builder: (context, _) {
+        final formErrors = widget.formManager.getFormErrors();
+        if (formErrors.isEmpty) return const SizedBox.shrink();
+
+        return KeyedSubtree(
+          key: _formErrorsKey,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.errorContainer,
+                borderRadius: BorderRadius.circular(12),
               ),
-            );
-          },
-        ),
-        Expanded(
-          child: ListenableBuilder(
-            listenable: Listenable.merge([_pageController, widget.formManager]),
-            builder: (context, _) {
-              return PageView.builder(
-                controller: _pageController,
-                onPageChanged: (index) {
-                  setState(() => _currentPageIndex = index);
-                },
-                itemCount: pages.length,
-                itemBuilder: (context, pageIndex) {
-                  final page = pages[pageIndex];
-                  return _buildPage(page);
-                },
-              );
-            },
+              child: Text(
+                formErrors.join('\n'),
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onErrorContainer,
+                ),
+              ),
+            ),
           ),
-        ),
-        if (widget.showNavigationButtons) ...[
+        );
+      },
+    );
+  }
+
+  Widget _buildPageView(List<SDUIPage> pages) {
+    return ListenableBuilder(
+      listenable: Listenable.merge([_pageController, widget.formManager]),
+      builder: (context, _) {
+        return PageView.builder(
+          controller: _pageController,
+          onPageChanged: (index) {
+            setState(() => _currentPageIndex = index);
+            _scheduleLayoutMeasurement();
+          },
+          itemCount: pages.length,
+          itemBuilder: (context, pageIndex) {
+            final page = pages[pageIndex];
+            return _buildPage(page);
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildNavigationArea() {
+    if (!widget.showNavigationButtons) return const SizedBox.shrink();
+
+    return KeyedSubtree(
+      key: _navigationAreaKey,
+      child: Column(
+        children: [
           const SizedBox(height: 12),
           ListenableBuilder(
             listenable: widget.formManager,
@@ -2109,7 +2261,7 @@ class _SDUIRendererState extends State<SDUIRenderer> {
           ),
           const SizedBox(height: 16),
         ],
-      ],
+      ),
     );
   }
 
@@ -2171,11 +2323,14 @@ class _SDUIRendererState extends State<SDUIRenderer> {
 
   Widget _buildPage(SDUIPage page) {
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.start,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [...page.sections.map((section) => _buildSection(section))],
+      child: Padding(
+        key: _pageContentKey(page.key),
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [...page.sections.map((section) => _buildSection(section))],
+        ),
       ),
     );
   }
@@ -2193,13 +2348,48 @@ class _SDUIRendererState extends State<SDUIRenderer> {
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisAlignment: MainAxisAlignment.start,
       children: [
-        if (section.label != null) ...[
-          Text(section.label!, style: theme.textTheme.titleMedium),
-        ],
+        ..._buildSectionHeader(
+          section,
+          labelStyle: theme.textTheme.titleMedium,
+          descriptionStyle: theme.textTheme.bodySmall,
+        ),
         ...section.fields.map((field) => _buildField(field)),
         const SizedBox(height: 24),
       ],
     );
+  }
+
+  List<Widget> _buildSectionHeader(
+    SDUISection section, {
+    required TextStyle? labelStyle,
+    required TextStyle? descriptionStyle,
+  }) {
+    final builder = SDUISectionHeaderRegistry.instance.builder;
+    if (builder != null) {
+      final customWidget = builder(
+        context,
+        SDUISectionHeaderContext(
+          section: section,
+          formManager: widget.formManager,
+          label: section.label,
+          description: section.description,
+          defaultLabelStyle: labelStyle,
+          defaultDescriptionStyle: descriptionStyle,
+        ),
+      );
+      if (customWidget != null) {
+        return [customWidget];
+      }
+    }
+
+    final children = <Widget>[];
+    if (section.label?.trim().isNotEmpty == true) {
+      children.add(Text(section.label!, style: labelStyle));
+    }
+    if (section.description?.trim().isNotEmpty == true) {
+      children.add(Text(section.description!, style: descriptionStyle));
+    }
+    return children;
   }
 
   Widget _buildField(SDUIField field) {
