@@ -257,6 +257,7 @@ class SDUIField {
   final SDUIConstraints? constraints;
   final List<SDUIValidation>? validations;
   final SDUIOptionProperties? optionProperties;
+  final SDUIAddressProperties? addressProperties;
   final List<SDUIConditional>? conditionals;
 
   SDUIField({
@@ -277,6 +278,7 @@ class SDUIField {
     this.constraints,
     this.validations,
     this.optionProperties,
+    this.addressProperties,
     this.conditionals,
   });
 
@@ -325,11 +327,88 @@ class SDUIField {
               Map<String, dynamic>.from(json['option_properties']),
             )
           : null,
+      addressProperties: json['address_properties'] is Map<String, dynamic>
+          ? SDUIAddressProperties.fromJson(
+              parentKey: json['key']?.toString() ?? '',
+              json: Map<String, dynamic>.from(json['address_properties']),
+            )
+          : null,
       conditionals:
           conditionals
               .map<SDUIConditional>((e) => SDUIConditional.fromJson(e))
               .toList() ??
           [],
+    );
+  }
+}
+
+class SDUIAddressProperties {
+  final List<SDUIAddressProperty> items;
+
+  const SDUIAddressProperties({required this.items});
+
+  factory SDUIAddressProperties.fromJson({
+    required String parentKey,
+    required Map<String, dynamic> json,
+  }) {
+    final items = <SDUIAddressProperty>[];
+
+    json.forEach((schemaKey, value) {
+      if (value is! Map) return;
+      items.add(
+        SDUIAddressProperty.fromJson(
+          parentKey: parentKey,
+          schemaKey: schemaKey,
+          json: Map<String, dynamic>.from(value),
+        ),
+      );
+    });
+
+    return SDUIAddressProperties(items: items);
+  }
+}
+
+class SDUIAddressProperty {
+  final String schemaKey;
+  final SDUIField field;
+
+  const SDUIAddressProperty({required this.schemaKey, required this.field});
+
+  factory SDUIAddressProperty.fromJson({
+    required String parentKey,
+    required String schemaKey,
+    required Map<String, dynamic> json,
+  }) {
+    final childKey = json['key']?.toString().trim();
+    final resolvedKey = childKey == null || childKey.isEmpty
+        ? schemaKey.trim()
+        : childKey;
+    final resolvedLabel = json['label']?.toString().trim();
+
+    return SDUIAddressProperty(
+      schemaKey: schemaKey,
+      field: SDUIField.fromJson({
+        'id': json['id'] ?? '$parentKey.$resolvedKey',
+        'key': resolvedKey,
+        'label': resolvedLabel == null || resolvedLabel.isEmpty
+            ? resolvedKey
+            : resolvedLabel,
+        'placeholder': json['placeholder'],
+        'help_text': json['help_text'],
+        'default': json['default'] ?? json['value'],
+        'type': json['field_type'] ?? json['type'] ?? 'text',
+        'hidden': false,
+        'visible_if': const {'all': [], 'any': [], 'not': null},
+        'conditionals': const [],
+        'readonly': json['readonly'] ?? false,
+        'required': json['required'] ?? false,
+        'ui': json['ui'],
+        'autofill': json['autofill'],
+        'validation_response': json['validation_response'],
+        'constraints': json['constraints'] ?? const <String, dynamic>{},
+        'validations': json['validations'] ?? const <dynamic>[],
+        'option_properties': json['option_properties'],
+      }),
     );
   }
 }

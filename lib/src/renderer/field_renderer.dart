@@ -1,3 +1,4 @@
+import 'package:sdui/src/fields/default_address_field.dart';
 import 'package:flutter/material.dart';
 import 'package:sdui/sdui.dart';
 import 'package:sdui/src/fields/default_country_field.dart';
@@ -40,7 +41,7 @@ class SDUIFieldRenderer extends StatefulWidget {
 
 class _SDUIFieldRendererState extends State<SDUIFieldRenderer> {
   /// Field types that show general error messages below the field
-  final allowedTypesGeneralError = ["boolean"];
+  final allowedTypesGeneralError = ["boolean", "address"];
 
   @override
   Widget build(BuildContext context) {
@@ -200,6 +201,13 @@ class _SDUIFieldRendererState extends State<SDUIFieldRenderer> {
       // Phone field
       case 'phone':
         return SDUIPhoneField(
+          field: widget.field,
+          formManager: widget.formManager,
+          onChanged: widget.onChanged,
+        );
+
+      case 'address':
+        return SDUIAddressField(
           field: widget.field,
           formManager: widget.formManager,
           onChanged: widget.onChanged,

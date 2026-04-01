@@ -10,6 +10,7 @@ import 'package:sdui/src/config/options/options_ui_registry.dart';
 import 'package:sdui/src/config/submit_button/submit_button_registry.dart';
 import 'package:sdui/src/core/service/dio_service.dart';
 import 'package:sdui/src/renderer/field_renderer.dart';
+import 'package:sdui/src/util/address_field_value.dart';
 import 'package:sdui/src/util/data_enhance.dart';
 import 'package:sdui/src/util/logger.dart';
 import 'package:sdui/src/util/mask_input_formatter.dart';
@@ -192,9 +193,12 @@ class _SDUIRendererState extends State<SDUIRenderer> {
 
     final raw = field.defaultValue;
     if (raw == null) {
-      _resolvedDefaults[field.key] = null;
+      final resolved = field.type == 'address'
+          ? resolveAddressDefaultValue(field, null)
+          : null;
+      _resolvedDefaults[field.key] = resolved;
       visited.remove(field.key);
-      return null;
+      return resolved;
     }
 
     if (raw is String) {
@@ -211,15 +215,21 @@ class _SDUIRendererState extends State<SDUIRenderer> {
           return null;
         }
         final resolved = _resolveDefaultValue(refField, stack: visited);
+        final normalized = field.type == 'address'
+            ? resolveAddressDefaultValue(field, resolved)
+            : resolved;
         visited.remove(field.key);
-        _resolvedDefaults[field.key] = resolved;
-        return resolved;
+        _resolvedDefaults[field.key] = normalized;
+        return normalized;
       }
     }
 
-    _resolvedDefaults[field.key] = raw;
+    final resolved = field.type == 'address'
+        ? resolveAddressDefaultValue(field, raw)
+        : raw;
+    _resolvedDefaults[field.key] = resolved;
     visited.remove(field.key);
-    return raw;
+    return resolved;
   }
 
   void _applyDefaultToField(SDUIField field, Object? value) {
@@ -248,6 +258,13 @@ class _SDUIRendererState extends State<SDUIRenderer> {
       case 'phone':
         _setControllerValue(field.key, value?.toString(), mask: field.ui?.mask);
         widget.formManager.setFieldValue(field.key, value?.toString());
+        break;
+
+      case 'address':
+        widget.formManager.setFieldValue(
+          field.key,
+          compactAddressValue(field, value),
+        );
         break;
 
       case 'boolean':
@@ -679,6 +696,9 @@ class _SDUIRendererState extends State<SDUIRenderer> {
         break;
       case 'boolean':
         widget.formManager.setBooleanValue(field.key, false);
+        widget.formManager.setFieldValue(field.key, null);
+        break;
+      case 'address':
         widget.formManager.setFieldValue(field.key, null);
         break;
       case 'country':
@@ -1443,6 +1463,12 @@ class _SDUIRendererState extends State<SDUIRenderer> {
         widget.formManager.setFieldValue(field.key, boolValue);
         break;
 
+      case 'address':
+        final normalized = compactAddressValue(field, value);
+        if (normalized == null) return;
+        widget.formManager.setFieldValue(field.key, normalized);
+        break;
+
       case 'country':
         final countryValue = value?.toString();
         if (countryValue == null || countryValue.isEmpty) return;
@@ -1516,6 +1542,11 @@ class _SDUIRendererState extends State<SDUIRenderer> {
             .isNotEmpty;
       case 'boolean':
         return widget.formManager.booleanValues.containsKey(field.key);
+      case 'address':
+        return hasAnyAddressValue(
+          field,
+          widget.formManager.fieldValues[field.key],
+        );
       case 'country':
         return ((widget.formManager.selectedCountries[field.key])
                     ?.countryCode ??
@@ -1628,6 +1659,9 @@ class _SDUIRendererState extends State<SDUIRenderer> {
 
   bool _isFieldRequired(SDUIField field) {
     if (field.required) return true;
+    if (field.type == 'address') {
+      return requiredAddressComponentFields(field).isNotEmpty;
+    }
     return field.validations?.any(
           (validation) => validation.rule.toLowerCase() == 'required',
         ) ==
@@ -1635,6 +1669,9 @@ class _SDUIRendererState extends State<SDUIRenderer> {
   }
 
   String _requiredErrorMessage(SDUIField field) {
+    if (field.type == 'address') {
+      return addressRequiredErrorMessage(field);
+    }
     final message = field.validations
         ?.firstWhere(
           (validation) => validation.rule.toLowerCase() == 'required',
@@ -1664,6 +1701,12 @@ class _SDUIRendererState extends State<SDUIRenderer> {
 
       case 'boolean':
         return widget.formManager.getBooleanValue(field.key) == true;
+
+      case 'address':
+        return hasRequiredAddressValue(
+          field,
+          widget.formManager.getFieldValue(field.key),
+        );
 
       case 'options':
         return widget.formManager.getSelectedOption(field.key)?.isNotEmpty ==
@@ -1860,6 +1903,12 @@ class _SDUIRendererState extends State<SDUIRenderer> {
         }
         return widget.formManager.getFieldValue(field.key);
 
+      case 'address':
+        return compactAddressValue(
+          field,
+          widget.formManager.getFieldValue(field.key),
+        );
+
       case 'country':
         final countryCode = widget.formManager
             .getSelectedCountry(field.key)
@@ -1924,6 +1973,9 @@ class _SDUIRendererState extends State<SDUIRenderer> {
 
       case 'boolean':
         return _toBool(value) ?? value;
+
+      case 'address':
+        return compactAddressValue(field, value, includeDefaults: true);
 
       case 'country':
         final countryValue = value.toString();
