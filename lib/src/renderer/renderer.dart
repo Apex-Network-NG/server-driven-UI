@@ -1010,13 +1010,10 @@ class _SDUIRendererState extends State<SDUIRenderer> {
       validationResponse.endpoint,
       apiConfig.baseUrl ?? dio.options.baseUrl,
     );
-    final requestEndpoint = method == 'GET'
-        ? endpoint
-        : _appendQueryParametersToEndpoint(endpoint, params);
 
     final options = Options(method: method, headers: headers);
     final response = await dio.request(
-      requestEndpoint,
+      endpoint,
       data: method == 'GET' ? null : params,
       queryParameters: method == 'GET' ? params : null,
       options: options,
@@ -1024,21 +1021,6 @@ class _SDUIRendererState extends State<SDUIRenderer> {
     );
 
     return response.data;
-  }
-
-  String _appendQueryParametersToEndpoint(
-    String endpoint,
-    Map<String, dynamic> params,
-  ) {
-    if (params.isEmpty) return endpoint;
-
-    final uri = Uri.parse(endpoint);
-    final queryParameters = <String, String>{
-      ...uri.queryParameters,
-      ...params.map((key, value) => MapEntry(key, value?.toString() ?? '')),
-    };
-
-    return uri.replace(queryParameters: queryParameters).toString();
   }
 
   Map<String, String> _resolveValidationResponseHeaders(
