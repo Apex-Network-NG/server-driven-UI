@@ -15,7 +15,6 @@ export 'src/util/extensions.dart';
 export 'src/util/logger.dart';
 export 'src/util/sdui_form.dart';
 export 'src/util/sdui_form_manager.dart';
-
 // Theme
 export 'src/theme/sdui_theme.dart';
 
@@ -23,6 +22,7 @@ export 'src/theme/sdui_theme.dart';
 export 'src/config/autofill/autofill_api_config.dart';
 export 'src/config/address/address_component_registry.dart';
 export 'src/config/bottomsheet/bottomsheet_service.dart';
+export 'src/config/country/country_form.dart';
 export 'src/config/country/country.dart';
 export 'src/config/country/country_code.dart';
 export 'src/config/country/country_service.dart';
