@@ -82,6 +82,7 @@ class _SDUIFieldRendererState extends State<SDUIFieldRenderer> {
         final validatedText = widget.formManager.getValidatedText(
           widget.field.key,
         );
+        final errorText = widget.formManager.getError(widget.field.key);
         final hasError = widget.formManager.hasError(widget.field.key);
 
         return Container(
@@ -92,12 +93,11 @@ class _SDUIFieldRendererState extends State<SDUIFieldRenderer> {
               fieldContent,
               if (!hasError && validatedText != null) ...[
                 const SizedBox(height: 4),
-                Text(
-                  validatedText,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    fontSize: 12,
-                    color: theme.colorScheme.primary,
-                  ),
+                _buildValidationStateWidget(
+                  context,
+                  validatedText: validatedText,
+                  errorText: errorText,
+                  hasError: hasError,
                 ),
               ],
               if (widget.onAutofillRequested != null) ...[
@@ -120,18 +120,81 @@ class _SDUIFieldRendererState extends State<SDUIFieldRenderer> {
               if (hasError &&
                   allowedTypesGeneralError.contains(widget.field.type)) ...[
                 const SizedBox(height: 4),
-                Text(
-                  widget.formManager.getError(widget.field.key) ?? '',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    fontSize: 12,
-                    color: Colors.red,
-                  ),
+                _buildErrorStateWidget(
+                  context,
+                  validatedText: validatedText,
+                  errorText: errorText ?? '',
+                  hasError: hasError,
                 ),
               ],
             ],
           ),
         );
       },
+    );
+  }
+
+  Widget _buildValidationStateWidget(
+    BuildContext context, {
+    required String validatedText,
+    required String? errorText,
+    required bool hasError,
+  }) {
+    final customBuilder = SDUIValidationStateRegistry.instance.builder;
+    if (customBuilder != null) {
+      final customWidget = customBuilder(
+        context,
+        SDUIValidationStateContext(
+          field: widget.field,
+          formManager: widget.formManager,
+          validatedText: validatedText,
+          errorText: errorText,
+          hasError: hasError,
+          isLoading: widget.isAutofillLoading,
+        ),
+      );
+      if (customWidget != null) return customWidget;
+    }
+
+    final theme = Theme.of(context);
+    return Text(
+      validatedText,
+      style: theme.textTheme.bodySmall?.copyWith(
+        fontSize: 12,
+        color: theme.colorScheme.primary,
+      ),
+    );
+  }
+
+  Widget _buildErrorStateWidget(
+    BuildContext context, {
+    required String? validatedText,
+    required String errorText,
+    required bool hasError,
+  }) {
+    final customBuilder = SDUIErrorStateRegistry.instance.builder;
+    if (customBuilder != null) {
+      final customWidget = customBuilder(
+        context,
+        SDUIErrorStateContext(
+          field: widget.field,
+          formManager: widget.formManager,
+          validatedText: validatedText,
+          errorText: errorText,
+          hasError: hasError,
+          isLoading: widget.isAutofillLoading,
+        ),
+      );
+      if (customWidget != null) return customWidget;
+    }
+
+    final theme = Theme.of(context);
+    return Text(
+      errorText,
+      style: theme.textTheme.bodySmall?.copyWith(
+        fontSize: 12,
+        color: Colors.red,
+      ),
     );
   }
 

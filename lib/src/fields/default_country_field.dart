@@ -1,7 +1,6 @@
 import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:sdui/sdui.dart';
-import 'package:sdui/src/config/country/country_form.dart';
 import 'package:sdui/src/fields/country_picker_sheet.dart';
 import 'package:sdui/src/fields/selector.dart';
 import 'package:sdui/src/util/validator.dart';
