@@ -2254,7 +2254,7 @@ class _SDUIRendererState extends State<SDUIRenderer> {
       key: _navigationAreaKey,
       child: Column(
         children: [
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
           ListenableBuilder(
             listenable: widget.formManager,
             builder: (context, _) => _buildNavigationButtons(),
@@ -2322,14 +2322,27 @@ class _SDUIRendererState extends State<SDUIRenderer> {
   }
 
   Widget _buildPage(SDUIPage page) {
+    final visibleSections = page.sections.where((section) {
+      return !widget.formManager.isHidden(
+        _visKey('section', section.key),
+        fallback: section.hidden,
+      );
+    }).toList();
+
     return SingleChildScrollView(
       child: Padding(
         key: _pageContentKey(page.key),
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.start,
           crossAxisAlignment: CrossAxisAlignment.start,
-          children: [...page.sections.map((section) => _buildSection(section))],
+          children: [
+            for (var index = 0; index < visibleSections.length; index++) ...[
+              _buildSection(visibleSections[index]),
+              if (index < visibleSections.length - 1)
+                const SizedBox(height: 24),
+            ],
+          ],
         ),
       ),
     );
@@ -2354,7 +2367,6 @@ class _SDUIRendererState extends State<SDUIRenderer> {
           descriptionStyle: theme.textTheme.bodySmall,
         ),
         ...section.fields.map((field) => _buildField(field)),
-        const SizedBox(height: 24),
       ],
     );
   }
