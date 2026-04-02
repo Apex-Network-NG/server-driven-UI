@@ -76,6 +76,7 @@ class _SDUIRendererState extends State<SDUIRenderer> {
   final Map<String, double> _pageContentHeights = {};
   final Map<String, Object?> _resolvedDefaults = {};
   final Map<String, Timer> _autofillTimers = {};
+  final Map<String, Timer> _validationResponseTimers = {};
   final Map<String, CancelToken> _autofillCancelTokens = {};
   final Map<String, int> _autofillRequestIds = {};
   final Set<String> _autofillLoading = {};
@@ -137,6 +138,11 @@ class _SDUIRendererState extends State<SDUIRenderer> {
       timer.cancel();
     }
     _autofillTimers.clear();
+
+    for (final timer in _validationResponseTimers.values) {
+      timer.cancel();
+    }
+    _validationResponseTimers.clear();
 
     for (final token in _autofillCancelTokens.values) {
       token.cancel();
@@ -459,7 +465,7 @@ class _SDUIRendererState extends State<SDUIRenderer> {
       }
       if (!_isValidationResponseOnValidTrigger(validationResponse)) continue;
       if (_shouldExecuteValidationResponse(field, validationResponse)) {
-        _executeValidationResponse(field);
+        _scheduleValidationResponse(field, validationResponse);
       }
     }
   }
@@ -474,7 +480,7 @@ class _SDUIRendererState extends State<SDUIRenderer> {
     }
     if (!_isValidationResponseBlurTrigger(validationResponse)) return;
     if (!_shouldExecuteValidationResponse(field, validationResponse)) return;
-    _executeValidationResponse(field);
+    _scheduleValidationResponse(field, validationResponse);
   }
 
   bool _shouldConsiderAutofill(
@@ -634,6 +640,7 @@ class _SDUIRendererState extends State<SDUIRenderer> {
   }
 
   void _cancelValidationResponse(String fieldKey) {
+    _validationResponseTimers.remove(fieldKey)?.cancel();
     final requestKey = 'validation_response:$fieldKey';
     _validationResponseCancelTokens.remove(requestKey)?.cancel();
     _validationResponseRequestIds.remove(fieldKey);
@@ -789,6 +796,32 @@ class _SDUIRendererState extends State<SDUIRenderer> {
     });
   }
 
+  void _scheduleValidationResponse(
+    SDUIField field,
+    SDUIValidationResponse validationResponse,
+  ) {
+    if (!_validationResponseConditionsMet(validationResponse) ||
+        !_fieldHasValue(field) ||
+        widget.formManager.hasError(field.key)) {
+      _validationResponseTimers.remove(field.key)?.cancel();
+      return;
+    }
+
+    if (_isValidationResponseBlurTrigger(validationResponse) ||
+        validationResponse.debounceMs <= 0) {
+      _validationResponseTimers.remove(field.key)?.cancel();
+      _executeValidationResponse(field);
+      return;
+    }
+
+    final delay = Duration(milliseconds: validationResponse.debounceMs);
+    _validationResponseTimers[field.key]?.cancel();
+    _validationResponseTimers[field.key] = Timer(delay, () {
+      _validationResponseTimers.remove(field.key);
+      _executeValidationResponse(field);
+    });
+  }
+
   bool _isBlurTrigger(SDUIAutofill autofill) {
     return autofill.trigger.trim().toLowerCase() == 'blur';
   }
@@ -831,6 +864,7 @@ class _SDUIRendererState extends State<SDUIRenderer> {
       _autofillLoading.remove(fieldKey);
     }
     if (!mounted) return;
+    _preserveFieldFocusAcrossRebuild(fieldKey);
     setState(() {});
   }
 
@@ -843,7 +877,21 @@ class _SDUIRendererState extends State<SDUIRenderer> {
       _validationResponseLoading.remove(fieldKey);
     }
     if (!mounted) return;
+    _preserveFieldFocusAcrossRebuild(fieldKey);
     setState(() {});
+  }
+
+  void _preserveFieldFocusAcrossRebuild(String fieldKey) {
+    final focusNode = widget.formManager.focusNodes[fieldKey];
+    if (focusNode == null || !focusNode.hasFocus) return;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final currentFocusNode = widget.formManager.focusNodes[fieldKey];
+      if (currentFocusNode == null || currentFocusNode.hasFocus) return;
+      if (!currentFocusNode.canRequestFocus) return;
+      currentFocusNode.requestFocus();
+    });
   }
 
   void _triggerManualAutofill(SDUIField field) {

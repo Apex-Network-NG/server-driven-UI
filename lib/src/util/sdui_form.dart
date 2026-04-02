@@ -517,6 +517,7 @@ class SDUIValidationResponse {
   final String trigger;
   final String endpoint;
   final String method;
+  final int debounceMs;
   final List<SDUIValidationResponseHeader> headers;
   final List<SDUIAutofillParam> params;
   final List<SDUIAutofillMap> map;
@@ -528,6 +529,7 @@ class SDUIValidationResponse {
     required this.trigger,
     required this.endpoint,
     required this.method,
+    required this.debounceMs,
     required this.headers,
     required this.params,
     required this.map,
@@ -536,11 +538,15 @@ class SDUIValidationResponse {
   });
 
   factory SDUIValidationResponse.fromJson(Map<String, dynamic> json) {
+    final parsedDebounce =
+        int.tryParse(json['debounce_ms']?.toString() ?? '') ?? 0;
+
     return SDUIValidationResponse(
       enabled: json['enabled'] ?? true,
       trigger: (json['trigger'] ?? 'on_valid').toString().trim().toLowerCase(),
       endpoint: json['endpoint']?.toString() ?? '',
       method: (json['method'] ?? 'POST').toString(),
+      debounceMs: parsedDebounce > 0 ? parsedDebounce : 0,
       headers:
           (json['headers'] as List<dynamic>?)
               ?.whereType<Map>()
