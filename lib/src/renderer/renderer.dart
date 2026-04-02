@@ -463,7 +463,7 @@ class _SDUIRendererState extends State<SDUIRenderer> {
           validationResponse.enabled != true) {
         continue;
       }
-      if (!_isValidationResponseOnValidTrigger(validationResponse)) continue;
+      if (!_isValidationResponseChangeTrigger(validationResponse)) continue;
       if (_shouldExecuteValidationResponse(field, validationResponse)) {
         _scheduleValidationResponse(field, validationResponse);
       }
@@ -836,10 +836,11 @@ class _SDUIRendererState extends State<SDUIRenderer> {
     return autofill.trigger.trim().toLowerCase() == 'manual';
   }
 
-  bool _isValidationResponseOnValidTrigger(
+  bool _isValidationResponseChangeTrigger(
     SDUIValidationResponse validationResponse,
   ) {
-    return validationResponse.trigger.trim().toLowerCase() == 'on_valid';
+    final trigger = validationResponse.trigger.trim().toLowerCase();
+    return trigger == 'on_valid' || trigger == 'debounce';
   }
 
   bool _isValidationResponseBlurTrigger(
