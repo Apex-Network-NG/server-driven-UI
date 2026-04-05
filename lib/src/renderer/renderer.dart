@@ -719,17 +719,24 @@ class _SDUIRendererState extends State<SDUIRenderer> {
     widget.formManager.setValidatedText(field.key, null);
 
     switch (field.type) {
-      case 'short-text':
-      case 'medium-text':
-      case 'long-text':
       case 'text':
-      case 'email':
-      case 'url':
-      case 'password':
-      case 'phone':
-      case 'number':
-        widget.formManager.getController(field.key).clear();
-        widget.formManager.setFieldValue(field.key, null);
+        switch (field.typeProperties?.type) {
+          case 'short':
+          case 'medium':
+          case 'long':
+          case 'email':
+          case 'url':
+          case 'password':
+          case 'phone':
+          case 'number':
+            widget.formManager.getController(field.key).clear();
+            widget.formManager.setFieldValue(field.key, null);
+            break;
+          default:
+            widget.formManager.getController(field.key).clear();
+            widget.formManager.setFieldValue(field.key, null);
+            break;
+        }
         break;
       case 'boolean':
         widget.formManager.setBooleanValue(field.key, false);

@@ -259,6 +259,7 @@ class SDUIField {
   final SDUIOptionProperties? optionProperties;
   final SDUIAddressProperties? addressProperties;
   final List<SDUIConditional>? conditionals;
+  final SDUITypeProperties? typeProperties;
 
   SDUIField({
     required this.id,
@@ -280,6 +281,7 @@ class SDUIField {
     this.optionProperties,
     this.addressProperties,
     this.conditionals,
+    this.typeProperties,
   });
 
   factory SDUIField.fromJson(Map<String, dynamic> json) {
@@ -316,6 +318,9 @@ class SDUIField {
           : null,
       constraints: (constraints != null && constraintType != List<dynamic>)
           ? SDUIConstraints.fromJson(constraints)
+          : null,
+      typeProperties: json['type_properties'] != null
+          ? SDUITypeProperties.fromJson(json['type_properties'])
           : null,
       validations: json['validations'] != null
           ? (json['validations'] as List<dynamic>)
@@ -939,6 +944,16 @@ class SDUIConditional {
         Map<String, dynamic>.from(json['then']),
       ),
     );
+  }
+}
+
+class SDUITypeProperties {
+  final String type;
+
+  SDUITypeProperties({required this.type});
+
+  factory SDUITypeProperties.fromJson(Map<String, dynamic> json) {
+    return SDUITypeProperties(type: json['type'].toString());
   }
 }
 
