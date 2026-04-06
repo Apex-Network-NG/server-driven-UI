@@ -1,4 +1,5 @@
 import 'package:sdui/src/fields/default_address_field.dart';
+import 'package:sdui/src/fields/default_banner_field.dart';
 import 'package:sdui/src/fields/default_country_field.dart';
 import 'package:sdui/src/fields/default_date_field.dart';
 import 'package:sdui/src/fields/default_email_field.dart';
@@ -94,6 +95,14 @@ class SDUIInitializer {
     registry.register(
       SDUIFieldType.address,
       ({required field, required formManager, onChanged}) => SDUIAddressField(
+        field: field,
+        formManager: formManager,
+        onChanged: onChanged,
+      ),
+    );
+    registry.register(
+      SDUIFieldType.banner,
+      ({required field, required formManager, onChanged}) => SDUIBannerField(
         field: field,
         formManager: formManager,
         onChanged: onChanged,

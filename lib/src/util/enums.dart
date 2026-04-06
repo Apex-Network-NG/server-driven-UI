@@ -9,6 +9,7 @@ enum SDUIFieldType {
   password("password"),
   phone("phone"),
   address("address"),
+  banner("banner"),
   country("country"),
   boolean("boolean"),
   options("options"),

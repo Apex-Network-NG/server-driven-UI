@@ -724,11 +724,7 @@ class _SDUIRendererState extends State<SDUIRenderer> {
           case 'short':
           case 'medium':
           case 'long':
-          case 'email':
-          case 'url':
-          case 'password':
-          case 'phone':
-          case 'number':
+          case 'normal':
             widget.formManager.getController(field.key).clear();
             widget.formManager.setFieldValue(field.key, null);
             break;
@@ -738,11 +734,22 @@ class _SDUIRendererState extends State<SDUIRenderer> {
             break;
         }
         break;
+      case 'email':
+      case 'url':
+      case 'password':
+      case 'phone':
+      case 'number':
+        widget.formManager.getController(field.key).clear();
+        widget.formManager.setFieldValue(field.key, null);
+        break;
       case 'boolean':
         widget.formManager.setBooleanValue(field.key, false);
         widget.formManager.setFieldValue(field.key, null);
         break;
       case 'address':
+        widget.formManager.setFieldValue(field.key, null);
+        break;
+      case 'banner':
         widget.formManager.setFieldValue(field.key, null);
         break;
       case 'country':
@@ -1964,6 +1971,7 @@ class _SDUIRendererState extends State<SDUIRenderer> {
     final formData = <String, dynamic>{};
 
     for (final field in _fieldIndex.values) {
+      if (field.type == 'banner') continue;
       final currentValue = _currentSubmissionValue(field);
       if (!_isEmpty(currentValue)) {
         formData[field.key] = currentValue;

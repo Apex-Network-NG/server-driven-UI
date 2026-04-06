@@ -1,6 +1,7 @@
 import 'package:sdui/src/fields/default_address_field.dart';
 import 'package:flutter/material.dart';
 import 'package:sdui/sdui.dart';
+import 'package:sdui/src/fields/default_banner_field.dart';
 import 'package:sdui/src/fields/default_country_field.dart';
 import 'package:sdui/src/fields/default_date_field.dart';
 import 'package:sdui/src/fields/default_email_field.dart';
@@ -271,6 +272,13 @@ class _SDUIFieldRendererState extends State<SDUIFieldRenderer> {
 
       case 'address':
         return SDUIAddressField(
+          field: widget.field,
+          formManager: widget.formManager,
+          onChanged: widget.onChanged,
+        );
+
+      case 'banner':
+        return SDUIBannerField(
           field: widget.field,
           formManager: widget.formManager,
           onChanged: widget.onChanged,

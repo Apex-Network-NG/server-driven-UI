@@ -21,6 +21,7 @@ export 'src/theme/sdui_theme.dart';
 // Config
 export 'src/config/autofill/autofill_api_config.dart';
 export 'src/config/address/address_component_registry.dart';
+export 'src/config/banner/banner_registry.dart';
 export 'src/config/bottomsheet/bottomsheet_service.dart';
 export 'src/config/country/country_form.dart';
 export 'src/config/country/country.dart';

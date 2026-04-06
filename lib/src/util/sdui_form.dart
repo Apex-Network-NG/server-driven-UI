@@ -260,6 +260,7 @@ class SDUIField {
   final SDUIAddressProperties? addressProperties;
   final List<SDUIConditional>? conditionals;
   final SDUITypeProperties? typeProperties;
+  final SduiBannerProperties? bannerProperties;
 
   SDUIField({
     required this.id,
@@ -282,6 +283,7 @@ class SDUIField {
     this.addressProperties,
     this.conditionals,
     this.typeProperties,
+    this.bannerProperties,
   });
 
   factory SDUIField.fromJson(Map<String, dynamic> json) {
@@ -327,6 +329,11 @@ class SDUIField {
                 .map((validation) => SDUIValidation.fromJson(validation))
                 .toList()
           : [],
+      bannerProperties: json['banner_properties'] is Map<String, dynamic>
+          ? SduiBannerProperties.fromJson(
+              Map<String, dynamic>.from(json['banner_properties']),
+            )
+          : null,
       optionProperties: json['option_properties'] != null
           ? SDUIOptionProperties.fromJson(
               Map<String, dynamic>.from(json['option_properties']),
@@ -345,6 +352,51 @@ class SDUIField {
           [],
     );
   }
+}
+
+class SduiBannerProperties {
+  final String? variant;
+  final String? customVariant;
+  final String? message;
+  final String? icon;
+  final bool? isHtml;
+  final String? emphasis;
+  final String? customEmphasis;
+  final bool? dismissible;
+
+  SduiBannerProperties({
+    this.variant,
+    this.customVariant,
+    this.message,
+    this.icon,
+    this.isHtml,
+    this.emphasis,
+    this.customEmphasis,
+    this.dismissible,
+  });
+
+  factory SduiBannerProperties.fromJson(Map<String, dynamic> json) =>
+      SduiBannerProperties(
+        variant: json["variant"],
+        customVariant: json["custom_variant"],
+        message: json["message"],
+        icon: json["icon"],
+        isHtml: json["is_html"],
+        emphasis: json["emphasis"],
+        customEmphasis: json["custom_emphasis"],
+        dismissible: json["dismissible"],
+      );
+
+  Map<String, dynamic> toJson() => {
+    "variant": variant,
+    "custom_variant": customVariant,
+    "message": message,
+    "icon": icon,
+    "is_html": isHtml,
+    "emphasis": emphasis,
+    "custom_emphasis": customEmphasis,
+    "dismissible": dismissible,
+  };
 }
 
 class SDUIAddressProperties {
