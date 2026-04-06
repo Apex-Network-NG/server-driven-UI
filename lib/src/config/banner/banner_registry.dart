@@ -68,8 +68,48 @@ class SDUIBannerContext {
   bool get hasMessage => message.trim().isNotEmpty;
 }
 
+class SDUIBannerPaletteContext {
+  final SDUIField field;
+  final FormManager formManager;
+  final SduiBannerProperties? properties;
+  final String variant;
+  final String? customVariant;
+  final String emphasis;
+  final String? customEmphasis;
+  final String? iconName;
+  final bool dismissible;
+  final bool isHtml;
+  final String? rawMessage;
+  final String message;
+  final BorderRadius borderRadius;
+  final SDUIBannerVisualStyle defaultVisuals;
+
+  const SDUIBannerPaletteContext({
+    required this.field,
+    required this.formManager,
+    required this.properties,
+    required this.variant,
+    required this.customVariant,
+    required this.emphasis,
+    required this.customEmphasis,
+    required this.iconName,
+    required this.dismissible,
+    required this.isHtml,
+    required this.rawMessage,
+    required this.message,
+    required this.borderRadius,
+    required this.defaultVisuals,
+  });
+}
+
 typedef SDUIBannerBuilder =
     Widget? Function(BuildContext context, SDUIBannerContext bannerContext);
+
+typedef SDUIBannerPaletteBuilder =
+    SDUIBannerVisualStyle? Function(
+      BuildContext context,
+      SDUIBannerPaletteContext bannerPaletteContext,
+    );
 
 class SDUIBannerRegistry {
   SDUIBannerRegistry._();
@@ -84,6 +124,33 @@ class SDUIBannerRegistry {
   }
 
   SDUIBannerBuilder? get builder => _builder;
+
+  bool get hasBuilder => _builder != null;
+
+  bool unregister() {
+    final existed = _builder != null;
+    _builder = null;
+    return existed;
+  }
+
+  void clear() {
+    _builder = null;
+  }
+}
+
+class SDUIBannerPaletteRegistry {
+  SDUIBannerPaletteRegistry._();
+  static final instance = SDUIBannerPaletteRegistry._();
+
+  SDUIBannerPaletteBuilder? _builder;
+
+  bool register(SDUIBannerPaletteBuilder builder, {bool override = false}) {
+    if (_builder != null && !override) return false;
+    _builder = builder;
+    return true;
+  }
+
+  SDUIBannerPaletteBuilder? get builder => _builder;
 
   bool get hasBuilder => _builder != null;
 

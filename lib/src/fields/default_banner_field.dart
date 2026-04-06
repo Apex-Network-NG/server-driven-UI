@@ -72,10 +72,19 @@ class SDUIBannerField extends SDUIBaseWidget {
     final rawMessage = properties?.message?.trim();
     final isHtml = properties?.isHtml == true;
     final message = _resolveDisplayMessage(rawMessage, isHtml);
+    final borderRadius = sduiTheme?.borderRadius ?? BorderRadius.circular(12);
     final visuals = _resolveVisualStyle(
+      context,
       theme,
+      properties: properties,
       variant: variant,
-      borderRadius: sduiTheme?.borderRadius ?? BorderRadius.circular(20),
+      emphasis: emphasis,
+      rawMessage: rawMessage,
+      message: message,
+      isHtml: isHtml,
+      iconName: properties?.icon?.trim(),
+      dismissible: properties?.dismissible == true,
+      borderRadius: borderRadius,
     );
     final dismissible = properties?.dismissible == true;
     final iconName = properties?.icon?.trim();
@@ -140,22 +149,48 @@ class SDUIBannerField extends SDUIBaseWidget {
   }
 
   SDUIBannerVisualStyle _resolveVisualStyle(
+    BuildContext context,
     ThemeData theme, {
+    required SduiBannerProperties? properties,
     required String variant,
+    required String emphasis,
+    required String? rawMessage,
+    required String message,
+    required bool isHtml,
+    required String? iconName,
+    required bool dismissible,
     required BorderRadius borderRadius,
   }) {
-    final palette = _resolveVariantPalette(theme, variant);
-
-    return SDUIBannerVisualStyle(
-      backgroundColor: palette.backgroundColor,
-      foregroundColor: palette.foregroundColor,
-      borderColor: palette.borderColor,
-      iconBackgroundColor: palette.iconBackgroundColor,
-      iconColor: palette.iconColor,
+    final defaultVisuals = _resolveVariantPalette(
+      theme,
+      variant,
       borderRadius: borderRadius,
-      padding: const EdgeInsets.all(12),
-      spacing: 12,
     );
+    final customBuilder = SDUIBannerPaletteRegistry.instance.builder;
+    if (customBuilder != null) {
+      final customVisuals = customBuilder(
+        context,
+        SDUIBannerPaletteContext(
+          field: field,
+          formManager: formManager,
+          properties: properties,
+          variant: variant,
+          customVariant: properties?.customVariant?.trim(),
+          emphasis: emphasis,
+          customEmphasis: properties?.customEmphasis?.trim(),
+          iconName: iconName,
+          dismissible: dismissible,
+          isHtml: isHtml,
+          rawMessage: rawMessage,
+          message: message,
+          borderRadius: borderRadius,
+          defaultVisuals: defaultVisuals,
+        ),
+      );
+      if (customVisuals != null) return customVisuals;
+    }
+
+    return defaultVisuals;
   }
 
   TextStyle _resolveMessageStyle(ThemeData theme, String emphasis) {
@@ -173,7 +208,11 @@ class SDUIBannerField extends SDUIBaseWidget {
         TextStyle(fontSize: 16, height: 1.3, fontWeight: fontWeight);
   }
 
-  _BannerPalette _resolveVariantPalette(ThemeData theme, String variant) {
+  SDUIBannerVisualStyle _resolveVariantPalette(
+    ThemeData theme,
+    String variant, {
+    required BorderRadius borderRadius,
+  }) {
     final scheme = theme.colorScheme;
     final surface = scheme.surfaceContainerHighest;
 
@@ -182,7 +221,7 @@ class SDUIBannerField extends SDUIBaseWidget {
         final accent = theme.brightness == Brightness.dark
             ? const Color(0xFF6EE7B7)
             : const Color(0xFF15803D);
-        return _BannerPalette(
+        return SDUIBannerVisualStyle(
           backgroundColor: Color.alphaBlend(
             accent.withValues(alpha: 0.16),
             surface,
@@ -191,13 +230,16 @@ class SDUIBannerField extends SDUIBaseWidget {
           borderColor: accent.withValues(alpha: 0.22),
           iconBackgroundColor: scheme.surface,
           iconColor: accent,
+          borderRadius: borderRadius,
+          padding: const EdgeInsets.all(12),
+          spacing: 12,
         );
       case 'warning':
       case 'warn':
         final accent = theme.brightness == Brightness.dark
             ? const Color(0xFFFCD34D)
             : const Color(0xFFD97706);
-        return _BannerPalette(
+        return SDUIBannerVisualStyle(
           backgroundColor: Color.alphaBlend(
             accent.withValues(alpha: 0.16),
             surface,
@@ -206,11 +248,14 @@ class SDUIBannerField extends SDUIBaseWidget {
           borderColor: accent.withValues(alpha: 0.22),
           iconBackgroundColor: scheme.surface,
           iconColor: accent,
+          borderRadius: borderRadius,
+          padding: const EdgeInsets.all(12),
+          spacing: 12,
         );
       case 'error':
       case 'danger':
         final accent = scheme.error;
-        return _BannerPalette(
+        return SDUIBannerVisualStyle(
           backgroundColor: Color.alphaBlend(
             accent.withValues(alpha: 0.16),
             surface,
@@ -219,22 +264,28 @@ class SDUIBannerField extends SDUIBaseWidget {
           borderColor: accent.withValues(alpha: 0.22),
           iconBackgroundColor: scheme.surface,
           iconColor: accent,
+          borderRadius: borderRadius,
+          padding: const EdgeInsets.all(12),
+          spacing: 12,
         );
       case 'neutral':
       case 'default':
         final accent = scheme.onSurfaceVariant;
-        return _BannerPalette(
+        return SDUIBannerVisualStyle(
           backgroundColor: scheme.surfaceContainerHigh,
           foregroundColor: scheme.onSurface,
           borderColor: scheme.outline.withValues(alpha: 0.18),
           iconBackgroundColor: scheme.surface,
           iconColor: accent,
+          borderRadius: borderRadius,
+          padding: const EdgeInsets.all(12),
+          spacing: 12,
         );
       case 'custom':
       case 'info':
       default:
         final accent = scheme.primary;
-        return _BannerPalette(
+        return SDUIBannerVisualStyle(
           backgroundColor: Color.alphaBlend(
             accent.withValues(alpha: 0.14),
             surface,
@@ -243,6 +294,9 @@ class SDUIBannerField extends SDUIBaseWidget {
           borderColor: accent.withValues(alpha: 0.18),
           iconBackgroundColor: scheme.surface,
           iconColor: accent,
+          borderRadius: borderRadius,
+          padding: const EdgeInsets.all(12),
+          spacing: 12,
         );
     }
   }
@@ -297,20 +351,4 @@ class SDUIBannerField extends SDUIBaseWidget {
         return Icons.info_outline_rounded;
     }
   }
-}
-
-class _BannerPalette {
-  final Color backgroundColor;
-  final Color foregroundColor;
-  final Color borderColor;
-  final Color iconBackgroundColor;
-  final Color iconColor;
-
-  const _BannerPalette({
-    required this.backgroundColor,
-    required this.foregroundColor,
-    required this.borderColor,
-    required this.iconBackgroundColor,
-    required this.iconColor,
-  });
 }
