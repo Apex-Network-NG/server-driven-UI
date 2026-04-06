@@ -13,6 +13,7 @@ class SDUITheme extends ThemeExtension<SDUITheme> {
   final BoxDecoration? modalDecoration;
   final EdgeInsets? fieldPadding;
   final double? fieldSpacing;
+  final double? bannerTopSpacing;
   final BorderRadius? borderRadius;
 
   const SDUITheme({
@@ -27,6 +28,7 @@ class SDUITheme extends ThemeExtension<SDUITheme> {
     this.modalDecoration,
     this.fieldPadding,
     this.fieldSpacing,
+    this.bannerTopSpacing,
     this.borderRadius,
   });
 
@@ -123,6 +125,7 @@ class SDUITheme extends ThemeExtension<SDUITheme> {
       ),
       fieldPadding: const EdgeInsets.only(bottom: 16),
       fieldSpacing: 6,
+      bannerTopSpacing: 12,
       borderRadius: borderRadius,
     );
   }
@@ -140,6 +143,7 @@ class SDUITheme extends ThemeExtension<SDUITheme> {
     BoxDecoration? modalDecoration,
     EdgeInsets? fieldPadding,
     double? fieldSpacing,
+    double? bannerTopSpacing,
     BorderRadius? borderRadius,
   }) {
     return SDUITheme(
@@ -155,6 +159,7 @@ class SDUITheme extends ThemeExtension<SDUITheme> {
       modalDecoration: modalDecoration ?? this.modalDecoration,
       fieldPadding: fieldPadding ?? this.fieldPadding,
       fieldSpacing: fieldSpacing ?? this.fieldSpacing,
+      bannerTopSpacing: bannerTopSpacing ?? this.bannerTopSpacing,
       borderRadius: borderRadius ?? this.borderRadius,
     );
   }
@@ -191,6 +196,7 @@ class SDUITheme extends ThemeExtension<SDUITheme> {
       ),
       fieldPadding: EdgeInsets.lerp(fieldPadding, other.fieldPadding, t),
       fieldSpacing: t < 0.5 ? fieldSpacing : other.fieldSpacing,
+      bannerTopSpacing: t < 0.5 ? bannerTopSpacing : other.bannerTopSpacing,
       borderRadius: BorderRadius.lerp(borderRadius, other.borderRadius, t),
     );
   }

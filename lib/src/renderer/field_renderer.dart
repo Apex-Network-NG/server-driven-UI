@@ -25,6 +25,7 @@ class SDUIFieldRenderer extends StatefulWidget {
   final VoidCallback? onAutofillRequested;
   final bool Function()? isAutofillEnabled;
   final bool isAutofillLoading;
+  final double? bottomSpacing;
 
   const SDUIFieldRenderer({
     super.key,
@@ -34,6 +35,7 @@ class SDUIFieldRenderer extends StatefulWidget {
     this.onAutofillRequested,
     this.isAutofillEnabled,
     this.isAutofillLoading = false,
+    this.bottomSpacing,
   });
 
   @override
@@ -50,6 +52,7 @@ class _SDUIFieldRendererState extends State<SDUIFieldRenderer> {
       listenable: widget.formManager,
       builder: (context, _) {
         final theme = Theme.of(context);
+        final sduiTheme = theme.extension<SDUITheme>();
         final fieldType = SDUIFieldType.fromValue(widget.field.type);
         final useDefaultLoadingOverlay = !SDUIWidgetRegistry.instance
             .isLoadingAwareRegistered(fieldType);
@@ -87,7 +90,10 @@ class _SDUIFieldRendererState extends State<SDUIFieldRenderer> {
         final hasError = widget.formManager.hasError(widget.field.key);
 
         return Container(
-          padding: const EdgeInsets.only(bottom: 16),
+          padding: EdgeInsets.only(
+            bottom:
+                widget.bottomSpacing ?? sduiTheme?.fieldPadding?.bottom ?? 16,
+          ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [

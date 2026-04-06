@@ -11,6 +11,7 @@ import 'package:sdui/src/config/section/section_header_registry.dart';
 import 'package:sdui/src/config/submit_button/submit_button_registry.dart';
 import 'package:sdui/src/core/service/dio_service.dart';
 import 'package:sdui/src/renderer/field_renderer.dart';
+import 'package:sdui/src/theme/sdui_theme.dart';
 import 'package:sdui/src/util/address_field_value.dart';
 import 'package:sdui/src/util/data_enhance.dart';
 import 'package:sdui/src/util/logger.dart';
@@ -2414,6 +2415,8 @@ class _SDUIRendererState extends State<SDUIRenderer> {
 
   Widget _buildSection(SDUISection section) {
     final theme = Theme.of(context);
+    final sduiTheme = theme.extension<SDUITheme>();
+    final fields = section.fields;
 
     final hidden = widget.formManager.isHidden(
       _visKey('section', section.key),
@@ -2430,7 +2433,16 @@ class _SDUIRendererState extends State<SDUIRenderer> {
           labelStyle: theme.textTheme.titleMedium,
           descriptionStyle: theme.textTheme.bodySmall,
         ),
-        ...section.fields.map((field) => _buildField(field)),
+        for (var index = 0; index < fields.length; index++)
+          _buildField(
+            fields[index],
+            bottomSpacing: _resolveFieldBottomSpacing(
+              current: fields[index],
+              nextVisible: _nextVisibleField(fields, index),
+              defaultSpacing: sduiTheme?.fieldPadding?.bottom ?? 16,
+              bannerTopSpacing: sduiTheme?.bannerTopSpacing ?? 12,
+            ),
+          ),
       ],
     );
   }
@@ -2468,7 +2480,27 @@ class _SDUIRendererState extends State<SDUIRenderer> {
     return children;
   }
 
-  Widget _buildField(SDUIField field) {
+  SDUIField? _nextVisibleField(List<SDUIField> fields, int currentIndex) {
+    for (var index = currentIndex + 1; index < fields.length; index++) {
+      final candidate = fields[index];
+      if (_isFieldHidden(candidate)) continue;
+      return candidate;
+    }
+    return null;
+  }
+
+  double _resolveFieldBottomSpacing({
+    required SDUIField current,
+    required SDUIField? nextVisible,
+    required double defaultSpacing,
+    required double bannerTopSpacing,
+  }) {
+    if (_isFieldHidden(current)) return 0;
+    if (nextVisible?.type == 'banner') return bannerTopSpacing;
+    return defaultSpacing;
+  }
+
+  Widget _buildField(SDUIField field, {double? bottomSpacing}) {
     final autofill = field.autofill;
     final isManual =
         autofill != null &&
@@ -2489,6 +2521,7 @@ class _SDUIRendererState extends State<SDUIRenderer> {
           ? () => _isManualAutofillEnabled(field)
           : null,
       isAutofillLoading: isRemoteLoading,
+      bottomSpacing: bottomSpacing,
     );
   }
 }
