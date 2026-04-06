@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:sdui/src/config/banner/banner_registry.dart';
 import 'package:sdui/src/renderer/widget.dart';
 import 'package:sdui/src/theme/sdui_theme.dart';
+import 'package:sdui/src/util/extensions.dart';
 import 'package:sdui/src/util/sdui_form.dart';
 
 class SDUIBannerField extends SDUIBaseWidget {
@@ -88,6 +90,8 @@ class SDUIBannerField extends SDUIBaseWidget {
     );
     final dismissible = properties?.dismissible == true;
     final iconName = properties?.icon?.trim();
+    final iconUrl = iconName?.isValidUrl == true ? iconName : null;
+    final resolvedIcon = _resolveBannerIcon(iconName, variant);
 
     return SDUIBannerContext(
       field: field,
@@ -101,7 +105,10 @@ class SDUIBannerField extends SDUIBaseWidget {
       message: message,
       isHtml: isHtml,
       iconName: iconName,
-      iconData: _resolveBannerIcon(iconName, variant),
+      iconData: resolvedIcon.iconData ?? _resolveVariantIcon(variant),
+      iconUrl: iconUrl,
+      isSvgIcon: resolvedIcon.isSvg,
+      resolvedIcon: resolvedIcon,
       dismissible: dismissible,
       isDismissed: formManager.isHidden(field.key, fallback: field.hiddenField),
       dismiss: () => formManager.setHidden(field.key, true),
@@ -119,11 +126,43 @@ class SDUIBannerField extends SDUIBaseWidget {
         color: bannerContext.visuals.iconBackgroundColor,
         shape: BoxShape.circle,
       ),
-      child: Icon(
-        bannerContext.iconData,
-        color: bannerContext.visuals.iconColor,
-        size: 12,
-      ),
+      child: Center(child: _buildResolvedIcon(bannerContext)),
+    );
+  }
+
+  Widget _buildResolvedIcon(SDUIBannerContext bannerContext) {
+    final iconUrl = bannerContext.iconUrl;
+    if (iconUrl != null) {
+      if (bannerContext.isSvgIcon) {
+        return SvgPicture.network(
+          iconUrl,
+          key: ValueKey('sdui_banner_icon_svg_${field.key}'),
+          width: 12,
+          height: 12,
+          fit: BoxFit.contain,
+          placeholderBuilder: (_) => _buildFallbackIcon(bannerContext),
+          errorBuilder: (_, __, ___) => _buildFallbackIcon(bannerContext),
+        );
+      }
+
+      return Image.network(
+        iconUrl,
+        key: ValueKey('sdui_banner_icon_image_${field.key}'),
+        width: 12,
+        height: 12,
+        fit: BoxFit.contain,
+        errorBuilder: (_, __, ___) => _buildFallbackIcon(bannerContext),
+      );
+    }
+
+    return _buildFallbackIcon(bannerContext);
+  }
+
+  Widget _buildFallbackIcon(SDUIBannerContext bannerContext) {
+    return Icon(
+      bannerContext.iconData,
+      color: bannerContext.visuals.iconColor,
+      size: 12,
     );
   }
 
@@ -161,6 +200,7 @@ class SDUIBannerField extends SDUIBaseWidget {
     required bool dismissible,
     required BorderRadius borderRadius,
   }) {
+    final iconUrl = iconName?.isValidUrl == true ? iconName : null;
     final defaultVisuals = _resolveVariantPalette(
       theme,
       variant,
@@ -179,6 +219,8 @@ class SDUIBannerField extends SDUIBaseWidget {
           emphasis: emphasis,
           customEmphasis: properties?.customEmphasis?.trim(),
           iconName: iconName,
+          iconUrl: iconUrl,
+          isSvgIcon: _isSvgUrl(iconUrl),
           dismissible: dismissible,
           isHtml: isHtml,
           rawMessage: rawMessage,
@@ -301,40 +343,74 @@ class SDUIBannerField extends SDUIBaseWidget {
     }
   }
 
-  IconData _resolveBannerIcon(String? iconName, String variant) {
+  SDUIBannerResolvedIcon _resolveBannerIcon(String? iconName, String variant) {
     final normalized = iconName?.trim().toLowerCase();
+    if (iconName?.isValidUrl == true) {
+      return SDUIBannerResolvedIcon(
+        rawValue: iconName,
+        iconData: _resolveVariantIcon(variant),
+        networkUrl: iconName,
+        isSvg: _isSvgUrl(iconName),
+      );
+    }
+
     if (normalized != null && normalized.isNotEmpty) {
-      switch (normalized) {
-        case 'info':
-        case 'information':
-          return Icons.info_outline_rounded;
-        case 'warning':
-        case 'warn':
-        case 'alert':
-          return Icons.warning_amber_rounded;
-        case 'error':
-        case 'danger':
-          return Icons.error_outline_rounded;
-        case 'success':
-        case 'check':
-        case 'verified':
-          return Icons.check_circle_outline_rounded;
-        case 'shield':
-        case 'security':
-          return Icons.shield_outlined;
-        case 'bank':
-          return Icons.account_balance_outlined;
-        case 'money':
-        case 'currency':
-          return Icons.attach_money_rounded;
-        case 'clock':
-        case 'time':
-          return Icons.schedule_rounded;
-        case 'close':
-          return Icons.close_rounded;
+      final matchedIcon = _matchTextIcon(normalized);
+      if (matchedIcon != null) {
+        return SDUIBannerResolvedIcon(
+          rawValue: iconName,
+          iconData: matchedIcon,
+          networkUrl: null,
+          isSvg: false,
+        );
       }
     }
 
+    return SDUIBannerResolvedIcon(
+      rawValue: iconName,
+      iconData: _resolveVariantIcon(variant),
+      networkUrl: null,
+      isSvg: false,
+    );
+  }
+
+  IconData? _matchTextIcon(String normalized) {
+    switch (normalized) {
+      case 'info':
+      case 'information':
+        return Icons.info_outline_rounded;
+      case 'warning':
+      case 'warn':
+      case 'alert':
+        return Icons.warning_amber_rounded;
+      case 'error':
+      case 'danger':
+        return Icons.error_outline_rounded;
+      case 'success':
+      case 'check':
+      case 'verified':
+        return Icons.check_circle_outline_rounded;
+      case 'shield':
+      case 'security':
+        return Icons.shield_outlined;
+      case 'bank':
+        return Icons.account_balance_outlined;
+      case 'money':
+      case 'currency':
+        return Icons.attach_money_rounded;
+      case 'clock':
+      case 'time':
+        return Icons.schedule_rounded;
+      case 'close':
+        return Icons.close_rounded;
+    }
+
+    final genericIcon = normalized.sduiIconData;
+    if (genericIcon == Icons.settings) return null;
+    return genericIcon;
+  }
+
+  IconData _resolveVariantIcon(String variant) {
     switch (variant.trim().toLowerCase()) {
       case 'success':
         return Icons.check_circle_outline_rounded;
@@ -350,5 +426,12 @@ class SDUIBannerField extends SDUIBaseWidget {
       default:
         return Icons.info_outline_rounded;
     }
+  }
+
+  bool _isSvgUrl(String? value) {
+    if (value == null || value.trim().isEmpty) return false;
+    final uri = Uri.tryParse(value.trim());
+    final path = (uri?.path ?? value).toLowerCase();
+    return path.endsWith('.svg');
   }
 }

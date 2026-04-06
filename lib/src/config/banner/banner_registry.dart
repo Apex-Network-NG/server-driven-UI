@@ -2,6 +2,24 @@ import 'package:flutter/material.dart';
 import 'package:sdui/src/util/sdui_form.dart';
 import 'package:sdui/src/util/sdui_form_manager.dart';
 
+class SDUIBannerResolvedIcon {
+  final String? rawValue;
+  final IconData? iconData;
+  final String? networkUrl;
+  final bool isSvg;
+
+  const SDUIBannerResolvedIcon({
+    required this.rawValue,
+    required this.iconData,
+    required this.networkUrl,
+    required this.isSvg,
+  });
+
+  bool get hasIcon => iconData != null || networkUrl != null;
+  bool get hasIconData => iconData != null;
+  bool get hasNetworkIcon => networkUrl != null;
+}
+
 class SDUIBannerVisualStyle {
   final Color backgroundColor;
   final Color foregroundColor;
@@ -37,6 +55,9 @@ class SDUIBannerContext {
   final bool isHtml;
   final String? iconName;
   final IconData iconData;
+  final String? iconUrl;
+  final bool isSvgIcon;
+  final SDUIBannerResolvedIcon resolvedIcon;
   final bool dismissible;
   final bool isDismissed;
   final VoidCallback dismiss;
@@ -57,6 +78,9 @@ class SDUIBannerContext {
     required this.isHtml,
     required this.iconName,
     required this.iconData,
+    required this.iconUrl,
+    required this.isSvgIcon,
+    required this.resolvedIcon,
     required this.dismissible,
     required this.isDismissed,
     required this.dismiss,
@@ -77,6 +101,8 @@ class SDUIBannerPaletteContext {
   final String emphasis;
   final String? customEmphasis;
   final String? iconName;
+  final String? iconUrl;
+  final bool isSvgIcon;
   final bool dismissible;
   final bool isHtml;
   final String? rawMessage;
@@ -93,6 +119,8 @@ class SDUIBannerPaletteContext {
     required this.emphasis,
     required this.customEmphasis,
     required this.iconName,
+    required this.iconUrl,
+    required this.isSvgIcon,
     required this.dismissible,
     required this.isHtml,
     required this.rawMessage,

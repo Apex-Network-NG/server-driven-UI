@@ -121,6 +121,56 @@ void main() {
     expect(capturedContext.message, 'Fees may apply.');
   });
 
+  testWidgets('banner registry exposes network svg icon metadata', (
+    tester,
+  ) async {
+    late SDUIBannerContext capturedContext;
+    SDUIBannerRegistry.instance.register((context, bannerContext) {
+      capturedContext = bannerContext;
+      return const SizedBox.shrink();
+    }, override: true);
+
+    final form = _buildBannerForm(
+      bannerProperties: const {
+        'variant': 'info',
+        'message': 'Incoming wire fees may apply.',
+        'icon': 'https://cdn.example.com/info.svg',
+      },
+    );
+
+    await tester.pumpWidget(_wrap(form));
+    await tester.pump();
+
+    expect(capturedContext.iconName, 'https://cdn.example.com/info.svg');
+    expect(capturedContext.iconUrl, 'https://cdn.example.com/info.svg');
+    expect(capturedContext.isSvgIcon, true);
+    expect(capturedContext.iconData, Icons.info_outline_rounded);
+    expect(capturedContext.resolvedIcon.hasNetworkIcon, true);
+    expect(capturedContext.resolvedIcon.networkUrl, capturedContext.iconUrl);
+  });
+
+  testWidgets('default banner uses image widget for raster icon urls', (
+    tester,
+  ) async {
+    final form = _buildBannerForm(
+      bannerProperties: const {
+        'variant': 'info',
+        'message': 'Incoming wire fees may apply.',
+        'icon': 'https://cdn.example.com/info.png',
+      },
+    );
+
+    await tester.pumpWidget(_wrap(form));
+    await tester.pump();
+
+    expect(
+      find.byKey(const ValueKey('sdui_banner_icon_image_banner_1')),
+      findsOneWidget,
+    );
+    expect(find.byType(Image), findsWidgets);
+    tester.takeException();
+  });
+
   testWidgets('banner palette registry overrides default variant colors', (
     tester,
   ) async {
