@@ -1,7 +1,9 @@
 import 'package:email_validator/email_validator.dart';
 import 'package:flutter/material.dart';
 import 'package:phone_numbers_parser/phone_numbers_parser.dart';
+import 'package:sdui/src/config/country/country_service.dart';
 import 'package:sdui/src/util/extensions.dart';
+import 'package:sdui/src/util/phone_field_support.dart';
 import 'package:sdui/src/util/sdui_form.dart';
 import 'package:sdui/src/util/sdui_form_manager.dart';
 
@@ -367,6 +369,7 @@ class FieldValidator {
       booleanValue: booleanValue,
       dateValue: dateValue,
       timeValue: timeValue,
+      selectedCountryCode: resolvedCountryCode,
     );
     if (constraintsError != null) return constraintsError;
 
@@ -420,6 +423,7 @@ class FieldValidator {
     bool? booleanValue,
     DateTime? dateValue,
     TimeOfDay? timeValue,
+    String? selectedCountryCode,
   }) {
     constraints ??= const <String, dynamic>{};
 
@@ -476,6 +480,39 @@ class FieldValidator {
           return 'Country is not allowed';
         }
         if (exclude.isNotEmpty && exclude.contains(str)) {
+          return 'Country is not allowed';
+        }
+        return null;
+
+      case 'phone':
+        final selectedCode = selectedCountryCode?.trim().toUpperCase();
+        if (selectedCode == null || selectedCode.isEmpty) {
+          return 'Please select a country';
+        }
+
+        final country = resolvePhoneCountryByCode(
+          selectedCode,
+          codeType: 'alpha_2',
+          countryService: CountryService(),
+        );
+        if (country == null) {
+          return 'Please select a country';
+        }
+
+        final codeType = normalizePhoneCodeType(
+          constraints['code_type']?.toString(),
+        );
+        final allow = _stringList(constraints['allow_countries']);
+        final exclude = _stringList(constraints['exclude_countries']);
+        final comparableCode = phoneCountryConstraintCode(country, codeType);
+
+        if (allow.isNotEmpty &&
+            !allow.map((code) => code.toUpperCase()).contains(comparableCode)) {
+          return 'Country is not allowed';
+        }
+        if (exclude
+            .map((code) => code.toUpperCase())
+            .contains(comparableCode)) {
           return 'Country is not allowed';
         }
         return null;
@@ -628,6 +665,7 @@ class FieldValidator {
       'max_size': constraints.maxSize,
       'step': constraints.step,
       'code_type': constraints.codeType,
+      'format': constraints.format,
       'allowed_domains': constraints.allowedDomains,
       'disallowed_domains': constraints.disallowedDomains,
       'allow_countries': constraints.allowedCountries,

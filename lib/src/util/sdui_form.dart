@@ -773,6 +773,7 @@ class SDUIConstraints {
   final dynamic maxSize;
   final dynamic step;
   final String? codeType;
+  final String? format;
   final List<String> allowedDomains;
   final List<String> disallowedDomains;
   final List<String> allowedCountries;
@@ -791,6 +792,7 @@ class SDUIConstraints {
     this.maxSize,
     this.step,
     this.codeType,
+    this.format,
     required this.allowedDomains,
     required this.disallowedDomains,
     required this.allowedCountries,
@@ -815,6 +817,7 @@ class SDUIConstraints {
       maxSize: json['max_size'],
       step: json['step'],
       codeType: json['code_type'],
+      format: json['format'],
       allowedDomains:
           (json['allowed_domains'] as List<dynamic>?)
               ?.map((e) => e.toString())
@@ -841,7 +844,7 @@ class SDUIConstraints {
 
   @override
   String toString() {
-    return 'SDUIConstraints(min: $min, max: $max, minLength: $minLength, maxLength: $maxLength, maxFileSize: $maxFileSize, maxTotalSize: $maxTotalSize, accept: $accept, regex: $regex, maxSize: $maxSize, step: $step, codeType: $codeType, allowedDomains: $allowedDomains, disallowedDomains: $disallowedDomains, allowedCountries: $allowedCountries, disallowedCountries: $disallowedCountries, allowMultiple: $allowMultiple)';
+    return 'SDUIConstraints(min: $min, max: $max, minLength: $minLength, maxLength: $maxLength, maxFileSize: $maxFileSize, maxTotalSize: $maxTotalSize, accept: $accept, regex: $regex, maxSize: $maxSize, step: $step, codeType: $codeType, format: $format, allowedDomains: $allowedDomains, disallowedDomains: $disallowedDomains, allowedCountries: $allowedCountries, disallowedCountries: $disallowedCountries, allowMultiple: $allowMultiple)';
   }
 }
 
