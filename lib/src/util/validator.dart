@@ -623,7 +623,9 @@ class FieldValidator {
 
         if (allowedKeys.isEmpty) return null;
 
-        if (optionType == 'select' || optionType == 'radio') {
+        if (optionType == 'select' ||
+            optionType == 'radio' ||
+            optionType == 'tabs') {
           final key = value.toString();
           return allowedKeys.contains(key) ? null : 'Invalid option selected';
         }

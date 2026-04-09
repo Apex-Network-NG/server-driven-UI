@@ -5,6 +5,7 @@ import 'package:sdui/src/util/sdui_form_manager.dart';
 enum SDUIOptionsUiType {
   select('select'),
   radio('radio'),
+  tabs('tabs'),
   multiSelect('multi-select'),
   checkbox('checkbox');
 

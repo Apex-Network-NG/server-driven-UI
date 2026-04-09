@@ -27,14 +27,22 @@ class SDUIOptionsField extends SDUIBaseStatefulWidget {
 class _SDUIOptionsFieldState extends SDUIBaseState<SDUIOptionsField> {
   @override
   Widget build(BuildContext context) {
-    final properties = widget.field.optionProperties?.type;
-    final isRadio = properties == 'radio';
+    final uiType = SDUIOptionsUiType.fromFieldType(
+      widget.field.optionProperties?.type,
+    );
 
     return _DynamicOptionsResolver(
       fieldWidget: widget,
       builder: (context, optionsData, isLoading) {
-        if (isRadio) {
+        if (uiType == SDUIOptionsUiType.radio) {
           return _BuildRadioOptions(
+            widget: widget,
+            optionsData: optionsData,
+            isLoading: isLoading,
+          );
+        }
+        if (uiType == SDUIOptionsUiType.tabs) {
+          return _BuildTabsOptions(
             widget: widget,
             optionsData: optionsData,
             isLoading: isLoading,
@@ -856,6 +864,92 @@ class _BuildDropSelectionState extends State<_BuildDropSelection> {
   }
 }
 
+mixin _SingleSelectOptionsStateMixin<T extends StatefulWidget> on State<T> {
+  SDUIOptionsField get fieldWidget;
+
+  FormManager get _formManager => fieldWidget.formManager;
+  SDUIField get _field => fieldWidget.field;
+
+  List<String> applyDefaultSelection() {
+    var value = _formManager.getSelectedOption(_field.key);
+    final defaultValue = _field.defaultValue;
+
+    if ((value == null || value.isEmpty) && defaultValue != null) {
+      final defaults = defaultValue is List
+          ? defaultValue.map((e) => e.toString()).toList()
+          : [defaultValue.toString()];
+      _formManager.setSelectedOption(_field.key, defaults);
+      value = defaults;
+    }
+
+    return value ?? const <String>[];
+  }
+
+  SDUIOptionsUiContext buildSingleSelectUiContext({
+    required List<SDUIOption> optionsData,
+    required bool isLoading,
+    required SDUIOptionsUiType uiType,
+    required void Function(String key, List<SDUIOption> optionsData) onSelect,
+  }) {
+    final selectedKeys = applyDefaultSelection();
+    return SDUIOptionsUiContext(
+      field: _field,
+      formManager: _formManager,
+      options: optionsData,
+      selectedKeys: selectedKeys,
+      isLoading: isLoading,
+      uiType: uiType,
+      errorText: _formManager.getError(_field.key),
+      maxSelect: 1,
+      readOnly: _field.readonly,
+      selectSingle: (key) => onSelect(key, optionsData),
+      selectMany: (keys) {
+        if (keys.isEmpty) return;
+        onSelect(keys.first, optionsData);
+      },
+      toggleMany: (key) => onSelect(key, optionsData),
+    );
+  }
+
+  void setSingleSelection(String value, List<SDUIOption> optionsData) {
+    final fieldKey = _field.key;
+    _formManager.setSelectedOption(fieldKey, [value]);
+    fieldWidget.onChanged?.call(fieldKey, value);
+    validateSingleSelection(value, optionsData);
+    if (mounted) setState(() {});
+  }
+
+  void validateSingleSelection(String? value, List<SDUIOption> optionsData) {
+    _formManager.clearError(_field.key);
+
+    if (_field.required && (value == null || value.isEmpty)) {
+      final error = '${_field.label} is required';
+      _formManager.addError(_field.key, error);
+    }
+
+    if (value != null) {
+      final allowedValues = optionsData.map((e) => e.key).toList();
+      if (!allowedValues.contains(value)) {
+        final error =
+            'The selected ${_field.label.toLowerCase()} is not supported';
+        _formManager.addError(_field.key, error);
+      }
+    }
+
+    for (final validation in _field.validations ?? []) {
+      final result = FieldValidator.instance.validateRequired(
+        validation: validation,
+        formManager: _formManager,
+        textValue: value,
+        fieldType: _field.type,
+      );
+      if (result != null) {
+        _formManager.addError(_field.key, result);
+      }
+    }
+  }
+}
+
 class _BuildRadioOptions extends StatefulWidget {
   const _BuildRadioOptions({
     required this.widget,
@@ -871,50 +965,29 @@ class _BuildRadioOptions extends StatefulWidget {
   State<_BuildRadioOptions> createState() => _BuildRadioOptionsState();
 }
 
-class _BuildRadioOptionsState extends State<_BuildRadioOptions> {
+class _BuildRadioOptionsState extends State<_BuildRadioOptions>
+    with _SingleSelectOptionsStateMixin<_BuildRadioOptions> {
+  @override
+  SDUIOptionsField get fieldWidget => widget.widget;
+
   @override
   Widget build(BuildContext context) {
     final optionsData = widget.optionsData;
     final headerText = widget.widget.field.label;
     final theme = Theme.of(context);
-    List<String>? value = widget.widget.formManager.getSelectedOption(
-      widget.widget.field.key,
+    final uiContext = buildSingleSelectUiContext(
+      optionsData: optionsData,
+      isLoading: widget.isLoading,
+      uiType: SDUIOptionsUiType.radio,
+      onSelect: setSingleSelection,
     );
-    final formManager = widget.widget.formManager;
-    final defaultValue = widget.widget.field.defaultValue;
-
-    if ((value == null || value.isEmpty) && defaultValue != null) {
-      final defaults = defaultValue is List
-          ? defaultValue.map((e) => e.toString()).toList()
-          : [defaultValue.toString()];
-      formManager.setSelectedOption(widget.widget.field.key, defaults);
-      value = defaults;
-    }
+    final value = uiContext.selectedKeys;
 
     final customBuilder = SDUIOptionsUiRegistry.instance.builderFor(
       SDUIOptionsUiType.radio,
     );
     if (customBuilder != null) {
-      return customBuilder(
-        context,
-        SDUIOptionsUiContext(
-          field: widget.widget.field,
-          formManager: formManager,
-          options: optionsData,
-          selectedKeys: value ?? const <String>[],
-          isLoading: widget.isLoading,
-          uiType: SDUIOptionsUiType.radio,
-          errorText: formManager.getError(widget.widget.field.key),
-          maxSelect: 1,
-          readOnly: widget.widget.field.readonly,
-          selectSingle: (key) => _setSelection(key, optionsData),
-          selectMany: (keys) {
-            if (keys.isEmpty) return;
-            _setSelection(keys.first, optionsData);
-          },
-          toggleMany: (key) => _setSelection(key, optionsData),
-        ),
-      );
+      return customBuilder(context, uiContext);
     }
 
     return Column(
@@ -938,10 +1011,10 @@ class _BuildRadioOptionsState extends State<_BuildRadioOptions> {
             ),
           ),
         RadioGroup<String>(
-          groupValue: value?.first,
+          groupValue: value.firstOrNull,
           onChanged: (value) {
             if (value == null) return;
-            _setSelection(value, optionsData);
+            setSingleSelection(value, optionsData);
           },
           child: LayoutBuilder(
             builder: (context, constraints) {
@@ -961,7 +1034,7 @@ class _BuildRadioOptionsState extends State<_BuildRadioOptions> {
 
                   return InkWell(
                     onTap: () {
-                      _setSelection(option.key, optionsData);
+                      setSingleSelection(option.key, optionsData);
                     },
                     child: Container(
                       width: itemWidth,
@@ -1000,32 +1073,141 @@ class _BuildRadioOptionsState extends State<_BuildRadioOptions> {
       ],
     );
   }
+}
 
-  void _setSelection(String value, List<SDUIOption> optionsData) {
-    final fieldKey = widget.widget.field.key;
-    widget.widget.formManager.setSelectedOption(fieldKey, [value]);
-    widget.widget.onChanged?.call(fieldKey, value);
-    _validateField(value, optionsData);
-    if (mounted) setState(() {});
+class _BuildTabsOptions extends StatefulWidget {
+  const _BuildTabsOptions({
+    required this.widget,
+    required this.optionsData,
+    required this.isLoading,
+  });
+
+  final SDUIOptionsField widget;
+  final List<SDUIOption> optionsData;
+  final bool isLoading;
+
+  @override
+  State<_BuildTabsOptions> createState() => _BuildTabsOptionsState();
+}
+
+class _BuildTabsOptionsState extends State<_BuildTabsOptions>
+    with _SingleSelectOptionsStateMixin<_BuildTabsOptions> {
+  @override
+  SDUIOptionsField get fieldWidget => widget.widget;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final uiContext = buildSingleSelectUiContext(
+      optionsData: widget.optionsData,
+      isLoading: widget.isLoading,
+      uiType: SDUIOptionsUiType.tabs,
+      onSelect: setSingleSelection,
+    );
+
+    final customBuilder = SDUIOptionsUiRegistry.instance.builderFor(
+      SDUIOptionsUiType.tabs,
+    );
+    if (customBuilder != null) {
+      return customBuilder(context, uiContext);
+    }
+
+    final selectedKey = uiContext.selectedKeys.firstOrNull;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (widget.widget.field.label.trim().isNotEmpty) ...[
+          Text(
+            widget.widget.field.label,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurface,
+            ),
+          ),
+          const SizedBox(height: 6),
+        ],
+        if (widget.isLoading && widget.optionsData.isEmpty)
+          const Padding(
+            padding: EdgeInsets.only(bottom: 8),
+            child: SizedBox(
+              width: 16,
+              height: 16,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+          ),
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            children: [
+              for (
+                var index = 0;
+                index < widget.optionsData.length;
+                index++
+              ) ...[
+                _TabsOptionChip(
+                  option: widget.optionsData[index],
+                  selected: selectedKey == widget.optionsData[index].key,
+                  onTap: uiContext.readOnly
+                      ? null
+                      : () => setSingleSelection(
+                          widget.optionsData[index].key,
+                          widget.optionsData,
+                        ),
+                ),
+                if (index < widget.optionsData.length - 1)
+                  const SizedBox(width: 8),
+              ],
+            ],
+          ),
+        ),
+      ],
+    );
   }
+}
 
-  void _validateField(String? value, List<SDUIOption> optionsData) {
-    final formManager = widget.widget.formManager;
-    final field = widget.widget.field;
-    formManager.clearError(field.key);
+class _TabsOptionChip extends StatelessWidget {
+  const _TabsOptionChip({
+    required this.option,
+    required this.selected,
+    required this.onTap,
+  });
 
-    if (field.required && (value == null || value.isEmpty)) {
-      final error = '${field.label} is required';
-      formManager.addError(field.key, error);
-    }
+  final SDUIOption option;
+  final bool selected;
+  final VoidCallback? onTap;
 
-    if (value != null) {
-      final allowedValues = optionsData.map((e) => e.key).toList();
-      if (!allowedValues.contains(value)) {
-        final error =
-            'The selected ${field.label.toLowerCase()} is not supported';
-        formManager.addError(field.key, error);
-      }
-    }
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final selectedColor = theme.colorScheme.primary;
+    final unselectedColor = theme.colorScheme.outline;
+
+    return Material(
+      color: Colors.transparent,
+      child: GestureDetector(
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          curve: Curves.easeOut,
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(999),
+            color: selected
+                ? selectedColor.withValues(alpha: 0.12)
+                : theme.colorScheme.surface,
+            border: Border.all(
+              color: selected ? selectedColor : unselectedColor,
+            ),
+          ),
+          child: Text(
+            option.value,
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: selected ? selectedColor : theme.colorScheme.onSurface,
+              fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }
