@@ -107,6 +107,28 @@ Country? resolvePhoneCountryByCode(
   );
 }
 
+Country? defaultCountryForField(
+  SDUIField field, {
+  CountryService? countryService,
+}) {
+  final selected = field.constraints?.defaultCountry;
+  if (selected == null) return null;
+
+  final availableCountries = availablePhoneCountriesForField(
+    field,
+    countryService: countryService,
+  );
+  return resolvePhoneCountryByCode(
+        selected,
+        codeType: field.constraints?.codeType,
+        countryService: countryService,
+        availableCountries: availableCountries,
+      ) ??
+      availableCountries.firstWhereOrNull(
+        (country) => country.name == selected,
+      );
+}
+
 Country? selectedPhoneCountryForField(
   SDUIField field,
   FormManager formManager, {
@@ -135,12 +157,19 @@ Country? initialPhoneCountryForField(
   FormManager formManager, {
   CountryService? countryService,
 }) {
+  final defaultCountry = defaultCountryForField(
+    field,
+    countryService: countryService,
+  );
+
   final existing = selectedPhoneCountryForField(
     field,
     formManager,
     countryService: countryService,
   );
   if (existing != null) return existing;
+
+  if (defaultCountry != null) return defaultCountry;
 
   final availableCountries = availablePhoneCountriesForField(
     field,

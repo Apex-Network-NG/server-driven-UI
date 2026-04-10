@@ -778,6 +778,7 @@ class SDUIConstraints {
   final List<String> disallowedDomains;
   final List<String> allowedCountries;
   final List<String> disallowedCountries;
+  final String? defaultCountry;
   final bool allowMultiple;
 
   SDUIConstraints({
@@ -798,6 +799,7 @@ class SDUIConstraints {
     required this.allowedCountries,
     required this.disallowedCountries,
     required this.allowMultiple,
+    this.defaultCountry,
   });
 
   factory SDUIConstraints.fromJson(Map<String, dynamic> json) {
@@ -839,6 +841,7 @@ class SDUIConstraints {
               .toList() ??
           [],
       allowMultiple: json['allow_multiple'] ?? false,
+      defaultCountry: json['default_country'],
     );
   }
 

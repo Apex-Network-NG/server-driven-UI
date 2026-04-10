@@ -67,6 +67,7 @@ class _SDUIPhoneFieldState extends SDUIBaseState<SDUIPhoneField> {
 
   void _ensureInitialCountrySelection() {
     if (widget.formManager.getSelectedCountry(widget.field.key) != null) return;
+
     final initialCountry = initialPhoneCountryForField(
       widget.field,
       widget.formManager,

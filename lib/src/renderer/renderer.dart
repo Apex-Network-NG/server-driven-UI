@@ -720,6 +720,9 @@ class _SDUIRendererState extends State<SDUIRenderer> {
     widget.formManager.setValidatedText(field.key, null);
 
     switch (field.type) {
+      case 'short-text':
+      case 'medium-text':
+      case 'long-text':
       case 'text':
         switch (field.typeProperties?.type) {
           case 'short':
@@ -1875,6 +1878,8 @@ class _SDUIRendererState extends State<SDUIRenderer> {
 
   void _evaluateConditionalsForChangedField(String changedKey) {
     final changedValue = widget.formManager.fieldValues[changedKey];
+    final changedField = _fieldIndex[changedKey];
+    final shouldClearHiddenTargets = changedField?.type == 'options';
 
     bool matches(SDUIConditional c) {
       return _evaluateOperator(c.when.operator, changedValue, c.when.value);
@@ -1885,11 +1890,19 @@ class _SDUIRendererState extends State<SDUIRenderer> {
 
       for (final t in c.then.targets) {
         final targetKey = _visKey(t.type, t.key);
+        final wasHidden = widget.formManager.isHidden(targetKey);
+        bool nextHidden = wasHidden;
 
         if (c.then.action == 'show') {
-          widget.formManager.setHidden(targetKey, !ok);
+          nextHidden = !ok;
+          widget.formManager.setHidden(targetKey, nextHidden);
         } else if (c.then.action == 'hide') {
-          widget.formManager.setHidden(targetKey, ok);
+          nextHidden = ok;
+          widget.formManager.setHidden(targetKey, nextHidden);
+        }
+
+        if (shouldClearHiddenTargets && !wasHidden && nextHidden) {
+          _clearConditionalTargetValue(t);
         }
       }
     }
@@ -1916,6 +1929,53 @@ class _SDUIRendererState extends State<SDUIRenderer> {
         if (c.when.field == changedKey) applyTargets(c);
       }
     }
+  }
+
+  void _clearConditionalTargetValue(SDUIConditionalTarget target) {
+    switch (target.type) {
+      case 'field':
+        final field = _fieldIndex[target.key];
+        if (field == null) return;
+        _clearFieldValue(field);
+        _evaluateConditionalsForChangedField(field.key);
+        return;
+
+      case 'section':
+        final section = _findSectionByKey(target.key);
+        if (section == null) return;
+        for (final field in section.fields) {
+          _clearFieldValue(field);
+          _evaluateConditionalsForChangedField(field.key);
+        }
+        return;
+
+      case 'page':
+        final page = _findPageByKey(target.key);
+        if (page == null) return;
+        for (final section in page.sections) {
+          for (final field in section.fields) {
+            _clearFieldValue(field);
+            _evaluateConditionalsForChangedField(field.key);
+          }
+        }
+        return;
+    }
+  }
+
+  SDUISection? _findSectionByKey(String key) {
+    for (final page in widget.form.form.pages) {
+      for (final section in page.sections) {
+        if (section.key == key) return section;
+      }
+    }
+    return null;
+  }
+
+  SDUIPage? _findPageByKey(String key) {
+    for (final page in widget.form.form.pages) {
+      if (page.key == key) return page;
+    }
+    return null;
   }
 
   bool _evaluateOperator(String op, dynamic left, dynamic right) {

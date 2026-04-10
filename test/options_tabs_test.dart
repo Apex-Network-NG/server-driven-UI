@@ -43,6 +43,37 @@ void main() {
     expect(capturedContext.maxSelect, 1);
     expect(capturedContext.selectedKeys, isEmpty);
   });
+
+  testWidgets('switching options clears newly hidden linked fields', (
+    tester,
+  ) async {
+    final formManager = FormManager();
+
+    await tester.pumpWidget(
+      _wrap(_buildTabsConditionalForm(), formManager: formManager),
+    );
+    await tester.pumpAndSettle();
+
+    expect(formManager.isHidden('business_name'), isTrue);
+
+    await tester.tap(find.text('Business'));
+    await tester.pumpAndSettle();
+
+    expect(formManager.isHidden('business_name'), isFalse);
+
+    final businessNameField = find.byType(TextFormField).last;
+    await tester.enterText(businessNameField, 'Acme Ltd');
+    await tester.pumpAndSettle();
+
+    expect(formManager.getFieldValue('business_name'), 'Acme Ltd');
+
+    await tester.tap(find.text('Personal'));
+    await tester.pumpAndSettle();
+
+    expect(formManager.isHidden('business_name'), isTrue);
+    expect(formManager.getFieldValue('business_name'), isNull);
+    expect(formManager.getController('business_name').text, isEmpty);
+  });
 }
 
 Widget _wrap(SDUIForm form, {ThemeData? theme, FormManager? formManager}) {
@@ -94,6 +125,79 @@ SDUIForm _buildTabsForm() {
                     {'key': 'business', 'value': 'Business'},
                   ],
                 },
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  });
+}
+
+SDUIForm _buildTabsConditionalForm() {
+  return SDUIForm.fromJson({
+    'name': 'Options conditional clear test',
+    'pages': [
+      {
+        'id': 'page_1',
+        'key': 'page_1',
+        'label': '',
+        'hidden': false,
+        'conditionals': [],
+        'sections': [
+          {
+            'id': 'section_1',
+            'key': 'section_1',
+            'hidden': false,
+            'conditionals': [],
+            'fields': [
+              {
+                'id': 'account_type',
+                'key': 'account_type',
+                'label': 'Account Type',
+                'type': 'options',
+                'hidden': false,
+                'readonly': false,
+                'required': false,
+                'visible_if': {'all': [], 'any': [], 'not': null},
+                'validations': [],
+                'constraints': const <String, dynamic>{},
+                'conditionals': [
+                  {
+                    'when': {
+                      'field': 'account_type',
+                      'operator': 'is',
+                      'value': 'business',
+                    },
+                    'then': {
+                      'action': 'show',
+                      'targets': [
+                        {'key': 'business_name', 'type': 'field'},
+                      ],
+                    },
+                  },
+                ],
+                'option_properties': const {
+                  'type': 'tabs',
+                  'data': [
+                    {'key': 'personal', 'value': 'Personal'},
+                    {'key': 'business', 'value': 'Business'},
+                  ],
+                },
+              },
+              {
+                'id': 'business_name',
+                'key': 'business_name',
+                'label': 'Business Name',
+                'type': 'short-text',
+                'placeholder': 'Enter business name',
+                'hidden': false,
+                'readonly': false,
+                'required': false,
+                'conditionals': [],
+                'visible_if': {'all': [], 'any': [], 'not': null},
+                'validations': [],
+                'constraints': const <String, dynamic>{},
               },
             ],
           },
