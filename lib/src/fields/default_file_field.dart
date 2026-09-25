@@ -23,7 +23,6 @@ class SDUIFileField extends SDUIBaseStatefulWidget {
 
 class _SDUIFileFieldState extends SDUIBaseState<SDUIFileField> {
   final _selectedImages = ValueNotifier<List<PlatformFile>>([]);
-  final _picker = FilePicker.platform;
   final _size = ValueNotifier<num>(0);
   bool _isKb = false;
   bool _isMb = false;
@@ -120,7 +119,7 @@ class _SDUIFileFieldState extends SDUIBaseState<SDUIFileField> {
           return x.split('/').last;
         }).toList(),
       );
-      final result = await _picker.pickFiles(
+      final result = await FilePicker.pickFiles(
         type: switch (fileTypesExtension.isNotEmpty) {
           true => FileType.custom,
           _ => switch (widget.field.type) {
@@ -130,15 +129,13 @@ class _SDUIFileFieldState extends SDUIBaseState<SDUIFileField> {
             _ => FileType.any,
           },
         },
-        allowMultiple: allowMultiple,
         allowedExtensions: fileTypesExtension,
-        withData: true,
       );
-      if (result != null) {
+      if (result.isNotEmpty) {
         if (allowMultiple) {
-          _computeMultipleFiles(result.files);
+          _computeMultipleFiles(result);
         } else {
-          _computeSingleFile(result.files.first);
+          _computeSingleFile(result.first);
         }
       }
     } on PlatformException catch (e) {
