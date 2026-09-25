@@ -47,6 +47,7 @@ mixin ApiRequestMixin on ServiceLocator {
         return ApiResponse.cancel();
       case DioExceptionType.unknown:
       case DioExceptionType.badCertificate:
+      default:
         try {
           return ApiResponse.error(
             message: exception.response?.data["message"],
